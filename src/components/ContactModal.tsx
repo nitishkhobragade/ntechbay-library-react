@@ -83,10 +83,11 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
   };
 
   const handleOpenWhatsApp = () => {
-    const text = encodeURIComponent(
-      `Hello Nitish, I am ${formData.name || 'Student'} (${formData.email || 'Email'}). ${formData.message}`
-    );
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+    let text = "Hello Admin Nitish Sir, I have contacted you from RGPV E Library Website Online";
+    if (formData.message) {
+      text += `. Query from ${formData.name || 'Student'}: ${formData.message}`;
+    }
+    window.open(`https://wa.me/918982324497?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (
@@ -196,11 +197,11 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
               </a>
 
               <a
-                href="https://wa.me/?text=Hello%20Nitish,%20I%20am%20contacting%20you%20regarding%20NTechBay%20Library%20resources"
+                href="https://wa.me/918982324497?text=Hello%20Admin%20Nitish%20Sir%2C%20I%20have%20contacted%20you%20from%20RGPV%20E%20Library%20Website%20Online"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs cursor-pointer"
-                title="Chat on WhatsApp"
+                title="WhatsApp"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>WhatsApp</span>
@@ -216,6 +217,30 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                 <span>Email</span>
               </a>
             </div>
+          </div>
+
+          {/* Direct WhatsApp Callout */}
+          <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 text-left w-full sm:w-auto">
+              <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <MessageCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-emerald-950 leading-tight">Instant WhatsApp Support</p>
+                <p className="text-[11px] text-emerald-700">Chat with Admin Er. Nitish Khobragade directly</p>
+              </div>
+            </div>
+
+            <a
+              href="https://wa.me/918982324497?text=Hello%20Admin%20Nitish%20Sir%2C%20I%20have%20contacted%20you%20from%20RGPV%20E%20Library%20Website%20Online"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="WhatsApp"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer shrink-0"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Contact via WhatsApp</span>
+            </a>
           </div>
 
           {/* Feedback & Subject Request Form */}

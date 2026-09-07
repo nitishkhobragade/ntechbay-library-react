@@ -172,7 +172,7 @@ Creator & Administrator • NTechBay Platform
 - **GitHub:** [github.com/nitishkhobragade](https://github.com/nitishkhobragade/)
 - **Instagram:** [@nitish_khobragade](https://www.instagram.com/nitish_khobragade)
 - **Portfolio:** [nitishkhobragade.github.io/portfolio.nitish](https://nitishkhobragade.github.io/portfolio.nitish/)
-- **WhatsApp:** [Chat on WhatsApp](https://wa.me/?text=Hello%20Nitish,%20I%20am%20contacting%20you%20regarding%20NTechBay%20Library)
+- **WhatsApp:** [Chat on WhatsApp](https://wa.me/918982324497?text=Hello%20Admin%20Nitish%20Sir%2C%20I%20have%20contacted%20you%20from%20RGPV%20E%20Library%20Website%20Online)
 
 ---
 
