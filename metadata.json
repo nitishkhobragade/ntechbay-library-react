@@ -1,0 +1,8 @@
+{
+  "name": "NTechBay-Library by NK",
+  "description": "Modern responsive e-library for B.Tech, Polytechnic, MBA, and M.Tech engineering resources, study books, notes, and previous year question papers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
