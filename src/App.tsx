@@ -24,6 +24,10 @@ import {
   MessageCircle,
   ShieldCheck,
   Bell,
+  Linkedin,
+  Github,
+  Instagram,
+  Globe,
 } from 'lucide-react';
 
 const RESOURCE_CATEGORIES: ResourceCategory[] = [
@@ -35,15 +39,12 @@ const RESOURCE_CATEGORIES: ResourceCategory[] = [
   'Previous Year Papers',
 ];
 
+// Auto-lock timeout: 5 minutes (300,000 ms)
+const AUTO_LOCK_DURATION_MS = 5 * 60 * 1000;
+
 export default function App() {
-  // 1. Password security state (First page is password protected)
-  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem('ntechbay_unlocked') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // 1. Password security state (Always locked on fresh page load or page refresh)
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
 
   // App settings & data revision counter for instant admin link reflection
   const [dataVersion, setDataVersion] = useState<number>(0);
@@ -70,9 +71,6 @@ export default function App() {
 
   const handleUnlock = () => {
     setIsUnlocked(true);
-    try {
-      sessionStorage.setItem('ntechbay_unlocked', 'true');
-    } catch {}
   };
 
   const handleLock = () => {
@@ -81,6 +79,32 @@ export default function App() {
       sessionStorage.removeItem('ntechbay_unlocked');
     } catch {}
   };
+
+  // 2. Auto-lock when inactive for 5 minutes or more
+  useEffect(() => {
+    if (!isUnlocked) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+
+    const resetTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        setIsUnlocked(false);
+      }, AUTO_LOCK_DURATION_MS);
+    };
+
+    // Start 5-minute countdown immediately upon unlock
+    resetTimer();
+
+    // Reset countdown on any active user interaction
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetTimer, { passive: true }));
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetTimer));
+    };
+  }, [isUnlocked]);
 
   const handleUpdatePassword = (newPassword: string) => {
     setActivePassword(newPassword);
@@ -349,33 +373,79 @@ export default function App() {
             </button>
           </p>
 
-          <div className="flex items-center gap-3">
-            {/* Red Gmail icon matching user screenshot */}
+          <div className="flex items-center flex-wrap justify-center gap-2 sm:gap-2.5">
+            {/* LinkedIn */}
+            <a
+              href="https://in.linkedin.com/in/nitishkhobragade"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="LinkedIn: Nitish Khobragade"
+              className="p-1.5 bg-white rounded-md text-[#0a66c2] hover:bg-blue-50 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
+            >
+              <Linkedin className="w-4 h-4" />
+            </a>
+
+            {/* GitHub */}
+            <a
+              href="https://github.com/nitishkhobragade/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="GitHub: nitishkhobragade"
+              className="p-1.5 bg-white rounded-md text-slate-900 hover:bg-slate-100 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
+            >
+              <Github className="w-4 h-4" />
+            </a>
+
+            {/* Instagram */}
+            <a
+              href="https://www.instagram.com/nitish_khobragade"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Instagram: @nitish_khobragade"
+              className="p-1.5 bg-white rounded-md text-[#e4405f] hover:bg-pink-50 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
+            >
+              <Instagram className="w-4 h-4" />
+            </a>
+
+            {/* Portfolio */}
+            <a
+              href="https://nitishkhobragade.github.io/portfolio.nitish/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Official Portfolio: Nitish Khobragade"
+              className="p-1.5 bg-white rounded-md text-indigo-600 hover:bg-indigo-50 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
+            >
+              <Globe className="w-4 h-4" />
+            </a>
+
+            {/* Gmail */}
             <a
               href="mailto:djnitish97@gmail.com"
               title="Email Nitish Khobragade (djnitish97@gmail.com)"
-              className="p-1.5 bg-white rounded-md text-red-600 hover:bg-red-50 hover:scale-110 transition-all shadow-xs flex items-center justify-center"
+              className="p-1.5 bg-white rounded-md text-red-600 hover:bg-red-50 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
             >
               <Mail className="w-4 h-4" />
             </a>
 
-            {/* Green WhatsApp icon matching user screenshot */}
+            {/* WhatsApp */}
             <a
               href="https://wa.me/?text=Hello%20Nitish,%20I%20need%20assistance%20with%20NTechBay%20Library"
               target="_blank"
               rel="noopener noreferrer"
-              title="WhatsApp Nitish Khobragade"
-              className="p-1.5 bg-emerald-600 rounded-md text-white hover:bg-emerald-500 hover:scale-110 transition-all shadow-xs flex items-center justify-center"
+              title="WhatsApp: Nitish Khobragade"
+              className="p-1.5 bg-emerald-600 rounded-md text-white hover:bg-emerald-500 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
             </a>
+
+            <div className="w-px h-4 bg-white/25 mx-0.5 hidden sm:block" />
 
             {/* Admin Panel button */}
             <button
               id="footer-admin-btn"
               type="button"
               onClick={() => setIsAdminOpen(true)}
-              className="p-1.5 bg-white/10 hover:bg-white/25 rounded-md text-amber-300 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer ml-1"
+              className="p-1.5 bg-white/15 hover:bg-white/25 rounded-md text-amber-300 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
               title="Admin Panel & Course Links Manager"
             >
               <ShieldCheck className="w-4 h-4" />

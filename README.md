@@ -168,7 +168,10 @@ The application includes an internal Admin Portal triggered via the **Admin** bu
 Creator & Administrator • NTechBay Platform
 
 - **Email:** [djnitish97@gmail.com](mailto:djnitish97@gmail.com)
-- **LinkedIn:** [linkedin.com/in/nitishkhobragade](https://www.linkedin.com/in/nitishkhobragade)
+- **LinkedIn:** [linkedin.com/in/nitishkhobragade](https://in.linkedin.com/in/nitishkhobragade)
+- **GitHub:** [github.com/nitishkhobragade](https://github.com/nitishkhobragade/)
+- **Instagram:** [@nitish_khobragade](https://www.instagram.com/nitish_khobragade)
+- **Portfolio:** [nitishkhobragade.github.io/portfolio.nitish](https://nitishkhobragade.github.io/portfolio.nitish/)
 - **WhatsApp:** [Chat on WhatsApp](https://wa.me/?text=Hello%20Nitish,%20I%20am%20contacting%20you%20regarding%20NTechBay%20Library)
 
 ---
