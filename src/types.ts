@@ -31,3 +31,36 @@ export interface BranchOption {
   code: string;
   name: string;
 }
+
+export type UserRole = 'student' | 'admin';
+export type UserStatus = 'active' | 'suspended';
+
+export interface UserProfile {
+  uid: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  altPhone?: string;
+  dob?: string; // Format: YYYY-MM-DD
+  bio?: string;
+  college?: string;
+  course?: string;
+  branch?: string;
+  photoBase64?: string;
+  role: UserRole;
+  status: UserStatus;
+  createdAt: string;
+}
+
+export type NoticeType = 'text' | 'promotion' | 'alert';
+
+export interface NoticeItem {
+  id: string;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  type: NoticeType;
+  createdAt: string;
+  active: boolean;
+}

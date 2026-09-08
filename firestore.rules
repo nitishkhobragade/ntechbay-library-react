@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'djnitish97@gmail.com' ||
+        request.auth.token.email == 'nitishkhobragade89@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      // Allow reading user profile if owner, admin, or for lookup
+      allow get: if isSignedIn();
+      // Allow listing users for admins or checking uniqueness
+      allow list: if isSignedIn();
+      // Allow user to create their own record
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Allow owner or admin to update
+      allow update: if isOwner(userId) || isAdmin();
+      // Allow admin to delete
+      allow delete: if isAdmin();
+    }
+
+    // Notices Collection
+    match /notices/{noticeId} {
+      // Students can read active notices, admin can read all
+      allow read: if isSignedIn();
+      // Only admins can create, update, or delete notices
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "name": "NTechBay-Library by NK",
-  "description": "Modern responsive e-library for B.Tech, Polytechnic, MBA, and M.Tech engineering resources, study books, notes, and previous year question papers.",
+  "name": "NTechBay-Library | RGPV Notes, Syllabus, PYQs & Engineering Study Material",
+  "description": "NTechBay-Library by Nitish Khobragade: Free RGPV Engineering study materials including B.Tech, M.Tech, Polytechnic & MBA syllabus, notes, previous year papers, books, and important questions.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { CourseType, ResourceCategory } from './types';
+import { CourseType, ResourceCategory, NoticeItem } from './types';
 import {
   COURSE_SEMESTERS,
   COURSE_BRANCHES,
@@ -14,10 +14,20 @@ import { ResourceCard } from './components/ResourceCard';
 import { ResourceModal } from './components/ResourceModal';
 import { ContactModal } from './components/ContactModal';
 import { QuickDriveModal } from './components/QuickDriveModal';
-import { PasswordGate } from './components/PasswordGate';
 import { AdminPanelModal } from './components/AdminPanelModal';
+import { NoticeBoard } from './components/NoticeBoard';
+import { PromotionNoticeModal } from './components/PromotionNoticeModal';
+import { PasswordGate } from './components/PasswordGate';
+import { StudentHomePortal } from './components/StudentHomePortal';
+import { LoginPage } from './pages/Auth/LoginPage';
+import { SignupPage } from './pages/Auth/SignupPage';
+import { StudentProfileModal } from './pages/Student/StudentProfileModal';
+import { AdminDashboard } from './pages/Admin/AdminDashboard';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { getAppSettings } from './data/linkStore';
 import { b2a } from './utils/codec';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 import {
   FolderOpen,
   Mail,
@@ -28,6 +38,11 @@ import {
   Github,
   Instagram,
   Globe,
+  Sparkles,
+  User,
+  Phone,
+  LogOut,
+  ArrowLeft,
 } from 'lucide-react';
 
 const RESOURCE_CATEGORIES: ResourceCategory[] = [
@@ -42,8 +57,10 @@ const RESOURCE_CATEGORIES: ResourceCategory[] = [
 // Auto-lock timeout: 5 minutes (300,000 ms)
 const AUTO_LOCK_DURATION_MS = 5 * 60 * 1000;
 
-export default function App() {
-  // 1. Password security state (Always locked on fresh page load or page refresh)
+function LibraryApp() {
+  const { user, userProfile, isAdmin, logout } = useAuth();
+
+  // 1. Password security state (Always locked on fresh page load if guest)
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
 
   // App settings & data revision counter for instant admin link reflection
@@ -63,18 +80,64 @@ export default function App() {
   const [selectedSemester, setSelectedSemester] = useState<string>('Semester 4');
   const [selectedBranch, setSelectedBranch] = useState<string>('CIVIL');
 
-  // Modals
+  // Modals & Navigation Views
+  const [currentView, setCurrentView] = useState<'home' | 'courses'>('home');
   const [activeCategory, setActiveCategory] = useState<ResourceCategory | null>(null);
   const [isContactOpen, setIsContactOpen] = useState<boolean>(false);
   const [isQuickDriveOpen, setIsQuickDriveOpen] = useState<boolean>(false);
-  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [isAdminPanelModalOpen, setIsAdminPanelModalOpen] = useState<boolean>(false);
+  const [authView, setAuthView] = useState<'login' | 'signup' | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [isAdminDashboardView, setIsAdminDashboardView] = useState<boolean>(false);
+
+  // Notices & Promotional Broadcast State
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [isPromotionNoticeOpen, setIsPromotionNoticeOpen] = useState<boolean>(false);
+
+  // Real-time listener for notices from Firestore
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'notices'), where('active', '==', true));
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const list: NoticeItem[] = snapshot.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<NoticeItem, 'id'>),
+          }));
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setNotices(list);
+        },
+        (err) => {
+          console.warn('Notice listener error:', err);
+        }
+      );
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn('Failed to listen to notices:', err);
+    }
+  }, []);
+
+  // Handler for opening profile
+  const handleOpenProfile = () => {
+    setIsProfileOpen(true);
+  };
+
+  // When user is authenticated with Firebase, they are automatically granted unlocked library access
+  useEffect(() => {
+    if (user) {
+      setIsUnlocked(true);
+    }
+  }, [user]);
 
   const handleUnlock = () => {
     setIsUnlocked(true);
+    setCurrentView('courses');
   };
 
   const handleLock = () => {
     setIsUnlocked(false);
+    setCurrentView('home');
     try {
       sessionStorage.removeItem('ntechbay_unlocked');
     } catch {}
@@ -89,6 +152,7 @@ export default function App() {
     const resetTimer = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
+        // If guest, lock the screen. If logged-in user, keep them protected.
         setIsUnlocked(false);
       }, AUTO_LOCK_DURATION_MS);
     };
@@ -125,8 +189,6 @@ export default function App() {
   );
 
   // 1st & 2nd sem are ONLY common for B.Tech and Polytechnic.
-  // For M.Tech: Semesters 1, 2, and 3 ALL have branch specialization (CSE, CTM, DCE, PRODUCTION) and are NEVER common.
-  // For MBA: There are no branches; all 4 semesters are general management curriculum.
   const isBranchDisabled = useMemo(() => {
     if (selectedCourse === 'B.Tech' || selectedCourse === 'Polytechnic') {
       return isSemesterCommon(selectedCourse, selectedSemester);
@@ -189,7 +251,7 @@ export default function App() {
     return getResources(selectedCourse, selectedSemester, selectedBranch);
   }, [selectedCourse, selectedSemester, selectedBranch, dataVersion]);
 
-  // Count per category (0 or 1 Google Drive collection per category in courseData)
+  // Count per category
   const categoryCounts = useMemo(() => {
     const counts: Record<ResourceCategory, number> = {
       Syllabus: 0,
@@ -215,7 +277,7 @@ export default function App() {
     return allCurrentResources.filter((r) => r.category === activeCategory);
   }, [allCurrentResources, activeCategory]);
 
-  // Direct open in Google Drive without displaying the raw link
+  // Direct open in Google Drive
   const handleDirectOpen = (category: ResourceCategory) => {
     const resource = allCurrentResources.find((r) => r.category === category);
     if (resource && resource.encodedLink) {
@@ -236,33 +298,112 @@ export default function App() {
     return BRANCH_NAMES[selectedBranch] || selectedBranch;
   }, [selectedCourse, isBranchDisabled, selectedBranch]);
 
+  // Handle opening admin
+  const handleOpenAdmin = () => {
+    if (isAdmin) {
+      setIsAdminDashboardView(true);
+    } else if (!user) {
+      // Prompt sign in for admin
+      setAuthView('login');
+    } else {
+      // User is logged in as a student, no access
+      alert('Administrator access requires master admin credentials (Er. Nitish Khobragade).');
+    }
+  };
+
+  // If Admin Dashboard is active, render full dashboard
+  if (isAdminDashboardView && isAdmin) {
+    return (
+      <AdminDashboard
+        onBackToLibrary={() => setIsAdminDashboardView(false)}
+        onOpenResourceLinkEditor={() => setIsAdminPanelModalOpen(true)}
+      />
+    );
+  }
+
+  // MANDATE: The "Admin" button must appear ONLY on the main public landing page/homepage header,
+  // and must be completely hidden inside student dashboards and student profile pages.
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans relative">
       {/* 1. Top Navigation Bar */}
       <Navbar
         isUnlocked={isUnlocked}
         onLock={handleLock}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
         onOpenContact={() => setIsContactOpen(true)}
+        onOpenLogin={() => setAuthView('login')}
+        onOpenSignup={() => setAuthView('signup')}
+        onOpenProfile={handleOpenProfile}
+        onOpenNotices={() => setIsPromotionNoticeOpen(true)}
+        noticeCount={notices.length}
+        currentView={currentView}
+        onGoHome={() => setCurrentView('home')}
+        onGoCourses={() => setCurrentView('courses')}
       />
 
-      {/* Conditional Screen Rendering: First Page is Password Gate */}
-      {!isUnlocked ? (
-        <PasswordGate
-          onUnlock={handleUnlock}
-          onOpenContact={() => setIsContactOpen(true)}
-          onOpenAdmin={() => setIsAdminOpen(true)}
-          currentPassword={activePassword}
-        />
+      {/* Main Content Router: Homepage by default on reload */}
+      {currentView === 'home' ? (
+        !user ? (
+          <PasswordGate
+            onUnlock={handleUnlock}
+            onOpenContact={() => setIsContactOpen(true)}
+            onOpenAdmin={handleOpenAdmin}
+            currentPassword={appSettings.studentPassword}
+            authView={authView}
+            onSwitchAuthView={setAuthView}
+          />
+        ) : (
+          <StudentHomePortal
+            onEnterCourses={(course) => {
+              if (course) setSelectedCourse(course);
+              setCurrentView('courses');
+            }}
+            onOpenProfile={handleOpenProfile}
+            onOpenContact={() => setIsContactOpen(true)}
+            onOpenNotices={() => setIsPromotionNoticeOpen(true)}
+            noticeCount={notices.length}
+          />
+        )
       ) : (
-        /* Main Course Dashboard (Unlocked State) */
-        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6 items-center animate-fade-in">
-          {/* Admin Broadcast Announcement Notice Banner (If enabled) */}
+        /* Main Course Dashboard with Contact-style compact sizing */
+        <main className="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-2.5 sm:gap-3 items-center animate-fade-in">
+          {/* Breadcrumb / Navigation back bar */}
+          <div className="w-full flex items-center justify-between gap-2 pb-1 border-b border-slate-200/80">
+            <button
+              type="button"
+              onClick={() => setCurrentView('home')}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer py-1 px-2.5 rounded-lg hover:bg-blue-50 border border-blue-200/60 shadow-2xs"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Home</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-slate-500 hidden xs:inline">
+                {selectedCourse} Library
+              </span>
+              {user && (
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="text-xs text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 cursor-pointer py-1 px-2.5 rounded-lg hover:bg-rose-50 border border-rose-200/60 shadow-2xs"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Real-time Notice & Promotions Board from Cloud Firestore */}
+          <NoticeBoard />
+
+          {/* Legacy Admin Broadcast Announcement Notice Banner (If enabled) */}
           {appSettings.isAnnouncementEnabled && appSettings.announcementText && (
-            <section className="w-full max-w-4xl">
-              <div className="w-full bg-amber-50 border border-amber-300/80 rounded-xl p-3 sm:px-4 sm:py-2.5 flex items-center gap-3 text-amber-900 text-xs sm:text-sm font-medium shadow-xs">
-                <span className="p-1.5 bg-amber-200 text-amber-800 rounded-lg shrink-0">
-                  <Bell className="w-4 h-4" />
+            <section className="w-full">
+              <div className="w-full bg-amber-50 border border-amber-300/80 rounded-xl p-2.5 sm:px-3 sm:py-2 flex items-center gap-2 text-amber-900 text-xs font-medium shadow-2xs">
+                <span className="p-1 bg-amber-200 text-amber-800 rounded-lg shrink-0">
+                  <Bell className="w-3.5 h-3.5" />
                 </span>
                 <span className="flex-1">{appSettings.announcementText}</span>
               </div>
@@ -293,21 +434,21 @@ export default function App() {
           </section>
 
           {/* Current Filter Status Banner */}
-          <section className="w-full max-w-2xl">
-            <div className="bg-white border border-slate-200 rounded-full px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+          <section className="w-full">
+            <div className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 shadow-2xs text-xs">
+              <div className="flex items-center gap-2 text-slate-600">
                 <span className="flex h-2 w-2 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
                 </span>
                 <span className="text-slate-500 font-medium">Viewing:</span>
-                <strong className="text-slate-900 font-semibold">
+                <strong className="text-slate-900 font-bold truncate">
                   {selectedCourse} • {selectedSemester} • {branchDisplayName}
                 </strong>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-blue-50 text-blue-700 font-medium px-3 py-1 rounded-full border border-blue-200/60">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full border border-blue-200/60">
                   {allCurrentResources.length} Subjects Ready
                 </span>
               </div>
@@ -315,10 +456,10 @@ export default function App() {
           </section>
 
           {/* 4. Resource Grid (2 Columns x 3 Rows) */}
-          <section className="w-full max-w-4xl">
+          <section className="w-full">
             <div
               id="resource-grid"
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto w-full"
+              className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 w-full"
             >
               {RESOURCE_CATEGORIES.map((category) => (
                 <ResourceCard
@@ -331,47 +472,35 @@ export default function App() {
               ))}
             </div>
           </section>
-
-          {/* Quick Drive Folder Button */}
-          <section className="w-full max-w-4xl flex items-center justify-center pt-2">
-            <button
-              type="button"
-              onClick={() => setIsQuickDriveOpen(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all cursor-pointer"
-            >
-              <FolderOpen className="w-4 h-4" />
-              <span>Quick Drive Folder Lookup</span>
-            </button>
-          </section>
         </main>
-      )}
-
-      {/* Floating Quick Drive Folder Button (Visible only when unlocked) */}
-      {isUnlocked && (
-        <button
-          id="floating-quick-drive-btn"
-          type="button"
-          onClick={() => setIsQuickDriveOpen(true)}
-          className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 font-medium text-sm transition-all hover:scale-105 cursor-pointer border border-blue-400/40"
-        >
-          <FolderOpen className="w-4 h-4" />
-          <span>📂 Quick Drive</span>
-        </button>
       )}
 
       {/* Footer matching user's screenshot exactly */}
       <footer className="w-full bg-[#1b4393] text-white py-4 px-4 sm:px-6 mt-auto">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-center">
-          <p className="text-white/95">
-            This website is created by{' '}
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <p className="text-white/95">
+              This website is created by{' '}
+              <button
+                type="button"
+                onClick={() => setIsContactOpen(true)}
+                className="font-bold underline hover:text-blue-200 transition-colors cursor-pointer"
+              >
+                Nitish Khobragade
+              </button>
+            </p>
+
+            {/* Contact functionality in bottom near contact text with small telephone icon */}
             <button
               type="button"
               onClick={() => setIsContactOpen(true)}
-              className="font-bold underline hover:text-blue-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/15 hover:bg-white/25 text-white rounded-full text-xs font-semibold transition-all shadow-xs cursor-pointer border border-white/25 active:scale-95"
+              title="Contact Nitish Khobragade"
             >
-              Nitish Khobragade
+              <Phone className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Contact</span>
             </button>
-          </p>
+          </div>
 
           <div className="flex items-center flex-wrap justify-center gap-2 sm:gap-2.5">
             {/* LinkedIn */}
@@ -437,24 +566,48 @@ export default function App() {
             >
               <MessageCircle className="w-4 h-4" />
             </a>
-
-            <div className="w-px h-4 bg-white/25 mx-0.5 hidden sm:block" />
-
-            {/* Admin Panel button */}
-            <button
-              id="footer-admin-btn"
-              type="button"
-              onClick={() => setIsAdminOpen(true)}
-              className="p-1.5 bg-white/15 hover:bg-white/25 rounded-md text-amber-300 hover:scale-110 transition-all shadow-xs flex items-center justify-center cursor-pointer"
-              title="Admin Panel & Course Links Manager"
-            >
-              <ShieldCheck className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </footer>
 
-      {/* Modals */}
+      {/* Auth Modals: Only if user is logged in and triggers auth explicitly */}
+      {authView === 'login' && user && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+          <LoginPage
+            onClose={() => setAuthView(null)}
+            onSwitchToSignup={() => setAuthView('signup')}
+            onSuccess={() => setAuthView(null)}
+          />
+        </div>
+      )}
+
+      {authView === 'signup' && user && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+          <SignupPage
+            onClose={() => setAuthView(null)}
+            onSwitchToLogin={() => setAuthView('login')}
+            onSuccess={() => setAuthView(null)}
+          />
+        </div>
+      )}
+
+      {/* Student Profile Modal */}
+      <StudentProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        onOpenContact={() => setIsContactOpen(true)}
+      />
+
+      {/* Promotional Notice Broadcast Modal (auto-opens when profile opens and auto-closes in 3 to 4 seconds) */}
+      <PromotionNoticeModal
+        isOpen={isPromotionNoticeOpen}
+        onClose={() => setIsPromotionNoticeOpen(false)}
+        notices={notices}
+        onOpenContact={() => setIsContactOpen(true)}
+        autoCloseDurationMs={4000}
+      />
+
+      {/* Resource & Quick Drive Modals */}
       <ResourceModal
         isOpen={Boolean(activeCategory)}
         onClose={() => setActiveCategory(null)}
@@ -479,9 +632,10 @@ export default function App() {
         initialBranch={selectedBranch}
       />
 
+      {/* Legacy Admin Links Config Modal */}
       <AdminPanelModal
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
+        isOpen={isAdminPanelModalOpen}
+        onClose={() => setIsAdminPanelModalOpen(false)}
         onStudentPasswordUpdated={handleUpdatePassword}
         onDataChanged={() => setDataVersion((v) => v + 1)}
       />
@@ -491,5 +645,13 @@ export default function App() {
         onClose={() => setIsContactOpen(false)}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <LibraryApp />
+    </AuthProvider>
   );
 }

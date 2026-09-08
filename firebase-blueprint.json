@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered student or administrator profile record",
+      "type": "object",
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "description": "User first name",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "lastName": {
+          "type": "string",
+          "description": "User last name",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Unique email address in lowercase",
+          "maxLength": 128
+        },
+        "phone": {
+          "type": "string",
+          "description": "Primary mobile phone number",
+          "minLength": 10,
+          "maxLength": 15
+        },
+        "altPhone": {
+          "type": "string",
+          "description": "Optional secondary or alternate contact number",
+          "maxLength": 15
+        },
+        "dob": {
+          "type": "string",
+          "format": "date",
+          "description": "User date of birth in YYYY-MM-DD format"
+        },
+        "photoBase64": {
+          "type": "string",
+          "description": "Compressed base64 profile picture string (strictly under 50KB)",
+          "maxLength": 70000
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "admin"],
+          "description": "Access control role"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "suspended"],
+          "description": "Account activation status"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Account creation timestamp"
+        }
+      },
+      "required": ["firstName", "lastName", "email", "phone", "dob", "role", "status"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "Official broadcast announcement, alert or promotion",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Notice headline",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "content": {
+          "type": "string",
+          "description": "Notice body text",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "promotion", "alert"],
+          "description": "Visual style category"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Optional promotion image or banner URL or compressed base64",
+          "maxLength": 70000
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether the notice is visible to students"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Notice publication timestamp"
+        }
+      },
+      "required": ["title", "content", "type", "active"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "User profile collection indexed by Firebase Auth UID"
+    },
+    "/notices/{noticeId}": {
+      "schema": {
+        "$ref": "#/entities/Notice"
+      },
+      "description": "Announcements and promotional feed entries"
+    }
+  }
+}

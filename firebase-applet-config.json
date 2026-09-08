@@ -1,0 +1,11 @@
+{
+  "projectId": "ntechbay-library",
+  "appId": "1:300453746922:web:7a3b26f585d4579f955f93",
+  "apiKey": "AIzaSyA9PCZTQSPeStjVIA_5WJeYNyBoUalMOvY",
+  "authDomain": "ntechbay-library.firebaseapp.com",
+  "databaseURL": "https://ntechbay-library-default-rtdb.firebaseio.com",
+  "storageBucket": "ntechbay-library.firebasestorage.app",
+  "messagingSenderId": "300453746922",
+  "measurementId": "G-CFCBJ62WD3",
+  "firestoreDatabaseId": "(default)"
+}
