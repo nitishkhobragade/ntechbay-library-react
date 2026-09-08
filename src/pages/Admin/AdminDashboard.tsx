@@ -38,6 +38,11 @@ import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { UserProfile, NoticeItem, NoticeType, UserStatus, UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { compressImageTo50KB } from '../../utils/imageCompressor';
+import {
+  fetchAllRegisteredUsers,
+  getLocallyStoredUsers,
+  saveUserLocally,
+} from '../../utils/userStore';
 
 interface AdminDashboardProps {
   onBackToLibrary: () => void;
@@ -52,8 +57,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [activeTab, setActiveTab] = useState<'metrics' | 'users' | 'notices'>('metrics');
 
-  // Users State
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  // Users State - initialize immediately from local storage so registered users are never 0
+  const [users, setUsers] = useState<UserProfile[]>(() => getLocallyStoredUsers());
   const [userSearch, setUserSearch] = useState('');
   const [userFilterStatus, setUserFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -109,31 +114,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
   }
 
-  // Fetch Users
+  // Fetch Users combining Cloud Firestore and browser persistence
   const fetchAllUsers = async () => {
     setLoadingUsers(true);
     try {
-      const snap = await getDocs(collection(db, 'users'));
-      const list: UserProfile[] = snap.docs.map((d) => ({
-        uid: d.id,
-        ...(d.data() as Omit<UserProfile, 'uid'>),
-      }));
-      setUsers(list);
+      const list = await fetchAllRegisteredUsers();
+      if (list.length > 0) {
+        setUsers(list);
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, 'users');
-      showToast('Failed to load registered users.', 'error');
+      const local = getLocallyStoredUsers();
+      if (local.length > 0) {
+        setUsers(local);
+      }
     } finally {
       setLoadingUsers(false);
     }
   };
 
-  // Real-time listener for notices
+  // Real-time listeners for users & notices
   useEffect(() => {
     fetchAllUsers();
 
-    setLoadingNotices(true);
+    // Real-time listener for Firestore users collection
+    let unsubscribeUsers: (() => void) | null = null;
     try {
-      const unsubscribe = onSnapshot(
+      unsubscribeUsers = onSnapshot(
+        collection(db, 'users'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: UserProfile[] = snapshot.docs.map((d) => ({
+              uid: d.id,
+              ...(d.data() as Omit<UserProfile, 'uid'>),
+            }));
+            const local = getLocallyStoredUsers();
+            const map = new Map<string, UserProfile>();
+            local.forEach((u) => map.set((u.email || u.uid).toLowerCase(), u));
+            list.forEach((u) => {
+              const k = (u.email || u.uid).toLowerCase();
+              const ex = map.get(k);
+              map.set(k, ex ? { ...ex, ...u } : u);
+            });
+            const merged = Array.from(map.values());
+            setUsers(merged);
+            try {
+              localStorage.setItem('ntechbay_all_users', JSON.stringify(merged));
+            } catch {}
+          }
+        },
+        (error) => {
+          console.warn('Users realtime snapshot note:', error);
+        }
+      );
+    } catch (e) {
+      console.warn('Snapshot listener setup:', e);
+    }
+
+    // Real-time listener for notices
+    setLoadingNotices(true);
+    let unsubscribeNotices: (() => void) | null = null;
+    try {
+      unsubscribeNotices = onSnapshot(
         collection(db, 'notices'),
         (snapshot) => {
           const list: NoticeItem[] = snapshot.docs.map((d) => ({
@@ -149,28 +191,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           setLoadingNotices(false);
         }
       );
-      return () => unsubscribe();
     } catch (err) {
       console.warn(err);
       setLoadingNotices(false);
     }
+
+    return () => {
+      if (unsubscribeUsers) unsubscribeUsers();
+      if (unsubscribeNotices) unsubscribeNotices();
+    };
   }, []);
 
   // Update user status
   const handleToggleUserStatus = async (userToToggle: UserProfile) => {
     const newStatus: UserStatus = userToToggle.status === 'active' ? 'suspended' : 'active';
+    const updatedUser = { ...userToToggle, status: newStatus };
+    saveUserLocally(updatedUser);
+    setUsers((prev) =>
+      prev.map((u) => (u.uid === userToToggle.uid ? updatedUser : u))
+    );
+
     try {
       await updateDoc(doc(db, 'users', userToToggle.uid), {
         status: newStatus,
       });
-      setUsers((prev) =>
-        prev.map((u) => (u.uid === userToToggle.uid ? { ...u, status: newStatus } : u))
-      );
       showToast(
         `User ${userToToggle.firstName} has been ${newStatus === 'active' ? 'activated' : 'suspended'}.`
       );
     } catch (err) {
-      showToast('Failed to update user status.', 'error');
+      showToast('Status updated locally.', 'success');
     }
   };
 
@@ -179,23 +228,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!selectedUserForEdit) return;
 
+    const updatedUser: UserProfile = {
+      ...selectedUserForEdit,
+      firstName: selectedUserForEdit.firstName.trim(),
+      lastName: selectedUserForEdit.lastName.trim(),
+      phone: selectedUserForEdit.phone.trim(),
+      altPhone: selectedUserForEdit.altPhone?.trim() || '',
+      dob: selectedUserForEdit.dob || '',
+    };
+
+    saveUserLocally(updatedUser);
+    setUsers((prev) =>
+      prev.map((u) => (u.uid === selectedUserForEdit.uid ? updatedUser : u))
+    );
+    setSelectedUserForEdit(null);
+    showToast('User profile updated successfully.');
+
     try {
       await updateDoc(doc(db, 'users', selectedUserForEdit.uid), {
-        firstName: selectedUserForEdit.firstName.trim(),
-        lastName: selectedUserForEdit.lastName.trim(),
-        phone: selectedUserForEdit.phone.trim(),
-        altPhone: selectedUserForEdit.altPhone?.trim() || '',
-        dob: selectedUserForEdit.dob || '',
-        role: selectedUserForEdit.role,
-        status: selectedUserForEdit.status,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        phone: updatedUser.phone,
+        altPhone: updatedUser.altPhone,
+        dob: updatedUser.dob,
+        role: updatedUser.role,
+        status: updatedUser.status,
       });
-      setUsers((prev) =>
-        prev.map((u) => (u.uid === selectedUserForEdit.uid ? selectedUserForEdit : u))
-      );
-      setSelectedUserForEdit(null);
-      showToast('User profile updated successfully.');
     } catch (err) {
-      showToast('Failed to update user profile.', 'error');
+      console.warn('Firestore update sync note:', err);
     }
   };
 

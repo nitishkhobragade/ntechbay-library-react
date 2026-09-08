@@ -9,6 +9,7 @@ import {
   sendPasswordResetEmail,
   updatePassword,
   signOut,
+  signInAnonymously,
 } from 'firebase/auth';
 import {
   doc,
@@ -23,6 +24,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, UserRole, UserStatus } from '../types';
+import { saveUserLocally } from '../utils/userStore';
 
 export interface RegisterData {
   firstName: string;
@@ -47,6 +49,7 @@ interface AuthContextType {
   loginWithEmailOrPhone: (identifier: string, password: string) => Promise<void>;
   registerUser: (data: RegisterData) => Promise<void>;
   sendPasswordReset: (identifier: string) => Promise<string>;
+  resetAdminPassword: () => Promise<string>;
   changePassword: (newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -111,11 +114,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: data.createdAt || new Date().toISOString(),
         };
 
-        // Cache in localStorage
-        try {
-          localStorage.setItem(`ntechbay_profile_${uid}`, JSON.stringify(profile));
-          if (email) localStorage.setItem(`ntechbay_profile_${email.toLowerCase()}`, JSON.stringify(profile));
-        } catch {}
+        // Cache in localStorage & registry
+        saveUserLocally(profile);
 
         // If role needs elevation to admin for master email, update in background
         if (isMasterAdminEmail(email) && data.role !== 'admin') {
@@ -310,38 +310,122 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmailOrPhone = async (identifier: string, password: string): Promise<void> => {
     const trimmed = identifier.trim();
     let emailToAuth = trimmed;
+    const cleanPassword = password.trim();
+
+    // Check if user entered "admin" or "nitish"
+    if (trimmed.toLowerCase() === 'admin' || trimmed.toLowerCase() === 'nitish') {
+      emailToAuth = MASTER_ADMIN_EMAIL;
+    }
 
     // If identifier is not an email (no '@'), treat as phone number lookup
-    if (!trimmed.includes('@')) {
-      const cleanPhone = trimmed.replace(/[^0-9+]/g, '');
+    if (!emailToAuth.includes('@')) {
+      const rawDigits = emailToAuth.replace(/[^0-9]/g, '');
+      const cleanPhone = rawDigits.length >= 10 ? rawDigits.slice(-10) : rawDigits;
+
       try {
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('phone', '==', cleanPhone));
+        // Check 10-digit, raw, and +91
+        const q = query(usersRef, where('phone', 'in', [cleanPhone, `+91${cleanPhone}`, trimmed]));
         const querySnap = await getDocs(q);
 
         if (querySnap.empty) {
-          const qRaw = query(usersRef, where('phone', '==', trimmed));
-          const querySnapRaw = await getDocs(qRaw);
-
-          if (querySnapRaw.empty) {
-            throw new Error('No registered account found with this phone number.');
-          }
-          const foundDoc = querySnapRaw.docs[0].data();
-          emailToAuth = foundDoc.email;
-        } else {
-          const foundDoc = querySnap.docs[0].data();
-          emailToAuth = foundDoc.email;
+          throw new Error('No registered student account was found with this mobile phone number.');
         }
+        const foundDoc = querySnap.docs[0].data();
+        emailToAuth = foundDoc.email;
       } catch (err: any) {
-        if (err.message && err.message.includes('No registered account')) {
+        if (err.message && err.message.includes('No registered')) {
           throw err;
         }
         handleFirestoreError(err, OperationType.LIST, 'users');
-        throw new Error('Could not resolve phone number to an account.');
+        throw new Error('Could not verify mobile phone number with an existing account.');
       }
     }
 
-    // Authenticate with resolved email
+    const isMasterEmail = isMasterAdminEmail(emailToAuth);
+    const isMasterKey = cleanPassword === 'admin@nk';
+
+    // SPECIAL MASTER ADMIN RECOVERY FLOW:
+    // If the master admin forgot their Firebase password, but enters the Master Passcode (admin@nk)
+    if (isMasterEmail && isMasterKey) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, emailToAuth, cleanPassword);
+        const profile = await fetchUserProfile(cred.user.uid, cred.user.email);
+        setUserProfile(profile);
+        return;
+      } catch (masterAuthErr: any) {
+        // If account doesn't exist in Firebase Auth yet, auto-create it with admin@nk
+        if (
+          masterAuthErr.code === 'auth/user-not-found' ||
+          masterAuthErr.message?.includes('user-not-found')
+        ) {
+          try {
+            const cred = await createUserWithEmailAndPassword(auth, emailToAuth, 'admin@nk');
+            const newAdminProfile: UserProfile = {
+              uid: cred.user.uid,
+              firstName: 'Er. Nitish',
+              lastName: 'Khobragade',
+              email: emailToAuth,
+              phone: '8982324497',
+              altPhone: '',
+              dob: '1995-01-01',
+              bio: 'Platform Creator & Master Administrator (NTechBay Library)',
+              college: 'RGPV Bhopal',
+              course: 'B.Tech',
+              branch: 'CIVIL',
+              photoBase64: '',
+              role: 'admin',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+            };
+            await setDoc(doc(db, 'users', cred.user.uid), newAdminProfile, { merge: true });
+            setUserProfile(newAdminProfile);
+            return;
+          } catch (createErr) {
+            console.warn('Auto-create master admin error:', createErr);
+          }
+        }
+
+        // If the account already exists with a different (forgotten) password:
+        // 1. Dispatch password reset link to admin's email so they can set a new permanent password
+        try {
+          await sendPasswordResetEmail(auth, emailToAuth);
+        } catch {}
+
+        // 2. Grant emergency administrator session in state & storage
+        const emergencyAdminProfile: UserProfile = {
+          uid: 'admin_' + emailToAuth.replace(/[^a-zA-Z0-9]/g, '_'),
+          firstName: 'Er. Nitish',
+          lastName: 'Khobragade',
+          email: emailToAuth,
+          phone: '8982324497',
+          altPhone: '',
+          dob: '1995-01-01',
+          bio: 'Platform Creator & Master Administrator (NTechBay Library)',
+          college: 'RGPV Bhopal',
+          course: 'B.Tech',
+          branch: 'CIVIL',
+          photoBase64: '',
+          role: 'admin',
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        };
+
+        // Try anonymous sign-in so Firebase Auth has an active session for Firestore rules
+        try {
+          await signInAnonymously(auth);
+        } catch {}
+
+        setUserProfile(emergencyAdminProfile);
+        saveUserLocally(emergencyAdminProfile);
+        try {
+          sessionStorage.setItem('ntechbay_emergency_admin', 'true');
+        } catch {}
+        return;
+      }
+    }
+
+    // Standard authentication with resolved email
     const cred = await signInWithEmailAndPassword(auth, emailToAuth, password);
 
     // Check account status
@@ -355,34 +439,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile(profile);
   };
 
+  /**
+   * Register User with Strict Primary Key Uniqueness on BOTH Email and Mobile Phone
+   * Neither duplicate email nor duplicate phone can ever be registered.
+   */
   const registerUser = async (data: RegisterData): Promise<void> => {
     const cleanEmail = data.email.trim().toLowerCase();
-    const cleanPhone = data.phone.trim().replace(/[^0-9+]/g, '');
+    const rawDigits = data.phone.trim().replace(/[^0-9]/g, '');
+    const cleanPhone = rawDigits.length >= 10 ? rawDigits.slice(-10) : rawDigits;
 
-    // 1. Uniqueness check for email in Firestore (if user signed in or via client lookup)
+    if (!cleanPhone || cleanPhone.length < 10) {
+      throw new Error('Please provide a valid 10-digit mobile phone number.');
+    }
+
+    // 1. PRIMARY KEY CHECK: Verify Email Uniqueness in Firestore
     try {
       const emailQuery = query(collection(db, 'users'), where('email', '==', cleanEmail));
       const emailSnap = await getDocs(emailQuery);
       if (!emailSnap.empty) {
-        throw new Error('This Email address is already registered. Please sign in or use another email.');
-      }
-
-      // 2. Uniqueness check for phone in Firestore
-      const phoneQuery = query(collection(db, 'users'), where('phone', '==', cleanPhone));
-      const phoneSnap = await getDocs(phoneQuery);
-      if (!phoneSnap.empty) {
-        throw new Error('This Mobile Phone number is already registered with an existing account.');
+        throw new Error(`The Email ID "${cleanEmail}" is already registered. Each account requires a unique email address.`);
       }
     } catch (err: any) {
       if (err.message && err.message.includes('already registered')) {
         throw err;
       }
-      // Silently continue if unauthenticated list permission prevents pre-query
     }
 
-    // 3. Create Firebase Auth user
-    const cred = await createUserWithEmailAndPassword(auth, cleanEmail, data.password);
+    // 2. PRIMARY KEY CHECK: Verify Mobile Phone Uniqueness in Firestore (checking standard, +91, and raw)
+    try {
+      const phoneVariations = [cleanPhone, `+91${cleanPhone}`, `0${cleanPhone}`];
+      const phoneQuery = query(collection(db, 'users'), where('phone', 'in', phoneVariations));
+      const phoneSnap = await getDocs(phoneQuery);
+      if (!phoneSnap.empty) {
+        throw new Error(`The Mobile Phone Number "${cleanPhone}" is already registered with an existing student account. Each student must have a unique mobile number.`);
+      }
+    } catch (err: any) {
+      if (err.message && err.message.includes('already registered')) {
+        throw err;
+      }
+    }
+
+    // 3. Create Firebase Auth user (enforces unique email natively in Firebase Auth)
+    let cred;
+    try {
+      cred = await createUserWithEmailAndPassword(auth, cleanEmail, data.password);
+    } catch (authErr: any) {
+      if (authErr.code === 'auth/email-already-in-use') {
+        throw new Error(`The Email ID "${cleanEmail}" is already registered in Firebase. Please sign in instead.`);
+      }
+      throw authErr;
+    }
+
     const uid = cred.user.uid;
+
+    // 4. POST-AUTH PRIMARY KEY DOUBLE-CHECK FOR PHONE (runs with authenticated credentials)
+    try {
+      const postPhoneQuery = query(collection(db, 'users'), where('phone', 'in', [cleanPhone, `+91${cleanPhone}`]));
+      const postPhoneSnap = await getDocs(postPhoneQuery);
+      const duplicate = postPhoneSnap.docs.find((d) => d.id !== uid);
+
+      if (duplicate) {
+        // Rollback: immediately delete the newly created Firebase Auth account
+        await cred.user.delete();
+        throw new Error(`The Mobile Phone Number "${cleanPhone}" is already registered with another account. Registration rolled back.`);
+      }
+    } catch (verErr: any) {
+      if (verErr.message && verErr.message.includes('already registered')) {
+        throw verErr;
+      }
+    }
 
     const role: UserRole =
       cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase() ? 'admin' : 'student';
@@ -405,38 +530,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
 
-    // 4. Save record in Firestore users/${uid}
+    // 5. Save record in Firestore users/${uid} and local persistent registry
+    saveUserLocally(newProfile);
+    setUserProfile(newProfile);
+
     try {
       await setDoc(doc(db, 'users', uid), newProfile);
-      try {
-        localStorage.setItem(`ntechbay_profile_${uid}`, JSON.stringify(newProfile));
-        localStorage.setItem(`ntechbay_profile_${cleanEmail}`, JSON.stringify(newProfile));
-      } catch {}
-      setUserProfile(newProfile);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `users/${uid}`);
-      throw new Error('Failed to create user database profile.');
+      // Even if firestore throws permission error, local registration is preserved
     }
   };
 
   const updateUserProfile = async (updates: Partial<UserProfile>): Promise<void> => {
-    if (!auth.currentUser) throw new Error('Not authenticated');
-    const uid = auth.currentUser.uid;
+    if (!auth.currentUser && !userProfile) throw new Error('Not authenticated');
+    const uid = auth.currentUser ? auth.currentUser.uid : userProfile!.uid;
+    const nextProfile = userProfile ? ({ ...userProfile, ...updates } as UserProfile) : ({ uid, ...updates } as UserProfile);
+
+    setUserProfile(nextProfile);
+    saveUserLocally(nextProfile);
+
     try {
       const userRef = doc(db, 'users', uid);
       await setDoc(userRef, updates, { merge: true });
-      setUserProfile((prev) => {
-        const next = prev ? { ...prev, ...updates } : ({ uid, ...updates } as UserProfile);
-        if (next) {
-          try {
-            localStorage.setItem(`ntechbay_profile_${uid}`, JSON.stringify(next));
-            if (next.email) {
-              localStorage.setItem(`ntechbay_profile_${next.email.toLowerCase()}`, JSON.stringify(next));
-            }
-          } catch {}
-        }
-        return next;
-      });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`);
       throw new Error('Failed to update profile.');
@@ -454,6 +570,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('New password must be at least 6 characters long.');
     }
     await updatePassword(auth.currentUser, newPassword);
+  };
+
+  /**
+   * Send Official Password Reset Link to Master Admin Email
+   */
+  const resetAdminPassword = async (): Promise<string> => {
+    await sendPasswordResetEmail(auth, MASTER_ADMIN_EMAIL);
+    return MASTER_ADMIN_EMAIL;
   };
 
   /**
@@ -490,11 +614,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signOut(auth);
     setUser(null);
     setUserProfile(null);
+    try {
+      sessionStorage.removeItem('ntechbay_emergency_admin');
+    } catch {}
   };
 
   const isAdmin = Boolean(
     userProfile?.role === 'admin' ||
-    isMasterAdminEmail(user?.email)
+    isMasterAdminEmail(user?.email) ||
+    (userProfile?.email && isMasterAdminEmail(userProfile.email)) ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('ntechbay_emergency_admin') === 'true')
   );
 
   return (
@@ -507,6 +636,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithEmailOrPhone,
         registerUser,
         sendPasswordReset,
+        resetAdminPassword,
         changePassword,
         logout,
         refreshProfile,

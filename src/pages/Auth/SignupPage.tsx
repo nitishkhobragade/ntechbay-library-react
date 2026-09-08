@@ -182,10 +182,10 @@ export const SignupPage: React.FC<SignupPageProps> = ({
       else if (onClose) onClose();
     } catch (err: any) {
       let msg = err.message || 'Registration failed.';
-      if (msg.includes('auth/email-already-in-use')) {
-        msg = 'This email is already registered. Please sign in instead.';
-      } else if (msg.includes('Mobile Phone number is already registered')) {
-        msg = 'This mobile number is already linked to another account.';
+      if (msg.includes('auth/email-already-in-use') || msg.includes('Email ID is already registered')) {
+        msg = 'This Email ID is already registered. One account per email is allowed.';
+      } else if (msg.includes('Mobile Phone number is already registered') || msg.includes('phone')) {
+        msg = 'This Mobile Phone number is already registered. One account per mobile number is allowed.';
       }
       setError(msg);
     } finally {
@@ -194,9 +194,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white/85 sm:bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 ring-1 ring-black/5 overflow-hidden transition-all animate-fade-in">
+    <div className="w-full max-w-md mx-auto bg-white/95 sm:bg-white/90 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-xl border border-white/60 ring-1 ring-black/5 overflow-hidden transition-all">
       {/* Ultra-compact Frosted Header */}
-      <div className="bg-gradient-to-r from-blue-600/95 via-indigo-600/95 to-blue-700/95 text-white py-2.5 px-3.5 relative border-b border-white/20 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-blue-600/95 via-indigo-600/95 to-blue-700/95 text-white py-2 px-3 relative border-b border-white/20 flex items-center justify-between">
         {onClose && (
           <button
             type="button"
@@ -210,12 +210,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({
 
         <div className="flex-1 text-center">
           <div className="flex items-center justify-center gap-1.5">
-            <UserPlus className="w-4 h-4 text-amber-300" />
-            <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
+            <UserPlus className="w-3.5 h-3.5 text-amber-300" />
+            <h2 className="text-xs sm:text-sm font-bold text-white tracking-tight">
               Create Student Account
             </h2>
           </div>
-          <p className="text-[10px] text-blue-100/90 font-medium">
+          <p className="text-[9px] sm:text-[10px] text-blue-100/90 font-medium leading-tight">
             Register to access RGPV course resources & personal profile
           </p>
         </div>
@@ -223,8 +223,8 @@ export const SignupPage: React.FC<SignupPageProps> = ({
         {onClose && <div className="w-10" />}
       </div>
 
-      {/* Form Content: Reduced vertical padding, margins and gaps */}
-      <div className="p-3 sm:p-3.5 max-h-[78vh] overflow-y-auto">
+      {/* Form Content: Reduced vertical padding, margins and gaps for mobile/tablet */}
+      <div className="p-2.5 sm:p-3.5 max-h-[75vh] sm:max-h-[78vh] overflow-y-auto">
         {error && (
           <div className="mb-2 p-2 bg-rose-50/95 border border-rose-200 rounded-lg text-rose-800 text-[11px] flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />

@@ -12,6 +12,7 @@ import {
   KeyRound,
   CheckCircle2,
   UserPlus,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -96,10 +97,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     }
   };
 
+
   return (
-    <div className="w-full max-w-md mx-auto bg-white/85 sm:bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 ring-1 ring-black/5 overflow-hidden transition-all animate-fade-in">
-      {/* Compact Header with Frosted Glass Gradient */}
-      <div className="bg-gradient-to-r from-blue-600/95 via-indigo-600/95 to-blue-700/95 text-white py-2.5 px-3.5 relative border-b border-white/20 flex items-center justify-between">
+    <div className="w-full max-w-md mx-auto bg-white/95 sm:bg-white/90 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-xl border border-white/60 ring-1 ring-black/5 overflow-hidden transition-all">
+      {/* Ultra-compact Header with Frosted Glass Gradient */}
+      <div className="bg-gradient-to-r from-blue-600/95 via-indigo-600/95 to-blue-700/95 text-white py-2 px-3 relative border-b border-white/20 flex items-center justify-between">
         {onClose && (
           <button
             type="button"
@@ -114,15 +116,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         <div className="flex-1 text-center">
           <div className="flex items-center justify-center gap-1.5">
             {viewMode === 'forgot' ? (
-              <KeyRound className="w-4 h-4 text-amber-300" />
+              <KeyRound className="w-3.5 h-3.5 text-amber-300" />
             ) : (
-              <BookOpen className="w-4 h-4 text-white" />
+              <BookOpen className="w-3.5 h-3.5 text-white" />
             )}
-            <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
+            <h2 className="text-xs sm:text-sm font-bold text-white tracking-tight">
               {viewMode === 'forgot' ? 'Reset Password' : 'Student Portal Sign In'}
             </h2>
           </div>
-          <p className="text-[10px] text-blue-100/90 font-medium mt-0.5">
+          <p className="text-[9px] sm:text-[10px] text-blue-100/90 font-medium leading-tight">
             {viewMode === 'forgot'
               ? 'Enter registered Email or Mobile Number'
               : 'Sign in to access RGPV courses & study resources'}
@@ -132,22 +134,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         {onClose && <div className="w-10" />}
       </div>
 
-      {/* Form Body: Compact vertical padding and gaps */}
-      <div className="p-3.5 sm:p-4">
+      {/* Form Body: Compact vertical padding and tight gaps */}
+      <div className="p-3 sm:p-3.5 space-y-2">
         {error && (
-          <div className="mb-2.5 p-2 bg-rose-50/95 border border-rose-200 rounded-lg text-rose-800 text-[11px] flex items-center gap-1.5">
+          <div className="p-2 bg-rose-50/95 border border-rose-200 rounded-lg text-rose-800 text-[11px] flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
             <span className="font-medium leading-tight">{error}</span>
           </div>
         )}
 
+
         {viewMode === 'forgot' ? (
           /* Forgot Password View */
           <div>
             {resetSentTo ? (
-              <div className="space-y-3 text-center py-2">
-                <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-5 h-5" />
+              <div className="space-y-2.5 text-center py-2">
+                <div className="w-9 h-9 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <h3 className="text-xs font-bold text-slate-800">Password Reset Link Sent!</h3>
                 <p className="text-[11px] text-slate-600 leading-relaxed px-1">
@@ -163,21 +166,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       setResetSentTo(null);
                       setError(null);
                     }}
-                    className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
+                    className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer"
                   >
                     Back to Sign In
                   </button>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-2.5">
+              <form onSubmit={handleForgotPassword} className="space-y-2">
                 <p className="text-[11px] text-slate-600 leading-snug">
                   Provide your registered Email or Mobile Number to receive a secure password reset link.
                 </p>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Email Address or Phone <span className="text-rose-500">*</span>
+                  <label className="block text-[10px] sm:text-[11px] font-bold text-slate-700 mb-0.5">
+                    Email Address or Mobile Phone <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 flex items-center gap-1 pointer-events-none">
@@ -192,7 +195,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       onChange={(e) => setIdentifier(e.target.value)}
                       placeholder="student@rgpv.ac.in or 9876543210"
                       required
-                      className="w-full pl-12 pr-2.5 py-1.5 bg-white/80 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                      className="w-full pl-11 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
                     />
                   </div>
                 </div>
@@ -201,11 +204,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   id="reset-submit-button"
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70"
+                  className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70"
                 >
                   <KeyRound className="w-3.5 h-3.5" />
                   <span>{loading ? 'Sending Link...' : 'Send Reset Link'}</span>
                 </button>
+
 
                 <div className="pt-1 text-center">
                   <button
@@ -224,10 +228,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         ) : (
           /* Sign In View */
-          <form onSubmit={handleSubmit} className="space-y-2.5">
+          <form onSubmit={handleSubmit} className="space-y-2">
             {/* Email or Phone */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+              <label className="block text-[10px] sm:text-[11px] font-bold text-slate-700 mb-0.5">
                 Email Address or Phone <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -243,16 +247,29 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="student@rgpv.ac.in or 9876543210"
                   required
-                  className="w-full pl-12 pr-2.5 py-1.5 bg-white/80 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  className="w-full pl-11 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Password with Eye Toggle */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Password <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="block text-[10px] sm:text-[11px] font-bold text-slate-700">
+                  Password <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('forgot');
+                    setError(null);
+                    setResetSentTo(null);
+                  }}
+                  className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <div className="relative">
                 <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -262,7 +279,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full pl-8 pr-8 py-1.5 bg-white/80 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
                 />
                 <button
                   type="button"
@@ -280,36 +297,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               id="login-submit-button"
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70 mt-1"
+              className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm rounded-lg shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70 mt-1"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>{loading ? 'Authenticating...' : 'Sign In'}</span>
             </button>
 
-            {/* Direct Action Row: Forgot Password & Register Buttons right below Sign In */}
-            <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode('forgot');
-                  setError(null);
-                  setResetSentTo(null);
-                }}
-                className="text-xs font-medium text-slate-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                <KeyRound className="w-3 h-3 text-slate-400" />
-                <span>Forgot Password?</span>
-              </button>
-
+            {/* Direct Action Row: Sign Up Button and Admin Help */}
+            <div className="pt-1.5 border-t border-slate-200/80 flex items-center justify-between gap-2">
+              <span className="text-[10px] text-slate-500">New student?</span>
               <button
                 type="button"
                 onClick={onSwitchToSignup}
-                className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50/90 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg border border-blue-200/90 transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg border border-blue-200 transition-all cursor-pointer shadow-2xs"
               >
                 <UserPlus className="w-3 h-3" />
-                <span>Sign Up / Register</span>
+                <span>Create Student Account</span>
               </button>
             </div>
+
           </form>
         )}
       </div>

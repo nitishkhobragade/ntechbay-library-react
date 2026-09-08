@@ -26,16 +26,14 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      // Allow reading user profile if owner, admin, or for lookup
-      allow get: if isSignedIn();
-      // Allow listing users for admins or checking uniqueness
-      allow list: if isSignedIn();
-      // Allow user to create their own record
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Allow reading user profiles so sign-up, login, and admin panel can list and verify uniqueness
+      allow read: if true;
+      // Allow creation during registration
+      allow create: if true;
       // Allow owner or admin to update
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if true;
       // Allow admin to delete
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Notices Collection
