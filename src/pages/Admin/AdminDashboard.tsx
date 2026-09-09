@@ -34,6 +34,11 @@ import {
   Shield,
   Lock,
   FileSpreadsheet,
+  Table,
+  Grid,
+  Calendar,
+  Clock,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   collection,
@@ -90,6 +95,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [loadingNotices, setLoadingNotices] = useState(false);
   const [isCreatingNotice, setIsCreatingNotice] = useState(false);
   const [editingNotice, setEditingNotice] = useState<NoticeItem | null>(null);
+
+  // Broadcasts & Promotion Management States
+  const [noticeSearch, setNoticeSearch] = useState('');
+  const [noticeFilterType, setNoticeFilterType] = useState<'all' | 'text' | 'promotion' | 'alert'>('all');
+  const [noticeFilterStatus, setNoticeFilterStatus] = useState<'all' | 'active' | 'archived'>('all');
+  const [noticeViewMode, setNoticeViewMode] = useState<'table' | 'cards'>('table');
+  const [viewingNotice, setViewingNotice] = useState<NoticeItem | null>(null);
+
+  // Filtered notices for Broadcast & Promotion Management
+  const filteredNotices = useMemo(() => {
+    return notices.filter((item) => {
+      if (noticeFilterType !== 'all' && item.type !== noticeFilterType) return false;
+      if (noticeFilterStatus === 'active' && !item.active) return false;
+      if (noticeFilterStatus === 'archived' && item.active) return false;
+      if (noticeSearch.trim()) {
+        const query = noticeSearch.toLowerCase();
+        return (
+          item.title?.toLowerCase().includes(query) ||
+          item.content?.toLowerCase().includes(query)
+        );
+      }
+      return true;
+    });
+  }, [notices, noticeFilterType, noticeFilterStatus, noticeSearch]);
+
+  // Contextual back action determination
+  const canGoBack =
+    activeTab !== 'metrics' ||
+    Boolean(viewingUser) ||
+    Boolean(selectedUserForEdit) ||
+    Boolean(overridePasswordStudent) ||
+    Boolean(viewingNotice) ||
+    isCreatingNotice;
+
+  const handleContextualBack = () => {
+    if (viewingNotice) {
+      setViewingNotice(null);
+      return;
+    }
+    if (isCreatingNotice) {
+      setIsCreatingNotice(false);
+      setEditingNotice(null);
+      return;
+    }
+    if (viewingUser) {
+      setViewingUser(null);
+      return;
+    }
+    if (selectedUserForEdit) {
+      setSelectedUserForEdit(null);
+      return;
+    }
+    if (overridePasswordStudent) {
+      setOverridePasswordStudent(null);
+      return;
+    }
+    if (activeTab === 'users' || activeTab === 'notices') {
+      setActiveTab('metrics');
+      return;
+    }
+  };
+
+  const getBackLabel = () => {
+    if (viewingNotice || isCreatingNotice) return 'Back to Broadcasts';
+    if (viewingUser || selectedUserForEdit || overridePasswordStudent) return 'Back to Users';
+    if (activeTab === 'users') return 'Back to Overview';
+    if (activeTab === 'notices') return 'Back to Overview';
+    return 'Back';
+  };
 
   // Notice Form State
   const [noticeForm, setNoticeForm] = useState({
@@ -498,29 +572,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Menu className="w-4 h-4" />
             </button>
 
-            <button
-              type="button"
-              onClick={onBackToLibrary}
-              className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 text-xs font-semibold"
-              title="Return to Student Portal"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Portal</span>
-            </button>
+            {canGoBack && (
+              <button
+                type="button"
+                onClick={handleContextualBack}
+                className="px-2.5 py-1.5 bg-white/15 hover:bg-white/25 rounded-xl text-white transition-all cursor-pointer shrink-0 flex items-center gap-1.5 text-xs font-semibold border border-white/20 shadow-xs active:scale-95"
+                title={getBackLabel()}
+              >
+                <ArrowLeft className="w-4 h-4 text-amber-300" />
+                <span className="hidden sm:inline">{getBackLabel()}</span>
+              </button>
+            )}
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-2xs">
                   Admin Panel
                 </span>
-                <h1 className="text-base sm:text-lg font-bold flex items-center gap-1.5 truncate">
-                  <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
-                  <span className="truncate">Administrative Control</span>
-                </h1>
+                <span className="text-slate-400 text-xs hidden sm:inline">/</span>
+                <span className="text-xs text-amber-200 font-semibold truncate hidden sm:inline">
+                  {activeTab === 'metrics'
+                    ? 'Overview & Metrics'
+                    : activeTab === 'users'
+                    ? userSubTab === 'students'
+                      ? 'Student Directory'
+                      : 'Administrators'
+                    : 'Broadcast Feed & Promotions'}
+                </span>
               </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                Master Administrator: Er. Nitish Khobragade (NK)
-              </p>
+              <h1 className="text-sm sm:text-base font-bold flex items-center gap-1.5 truncate text-white">
+                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="truncate">Administrative Control</span>
+              </h1>
             </div>
           </div>
 
@@ -693,17 +776,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <div className="pt-3 border-t border-slate-800 my-2" />
 
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAdminNavOpen(false);
-                  onBackToLibrary();
-                }}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 text-slate-300 hover:bg-white/5 transition-colors"
-              >
-                <BookOpen className="w-4 h-4 text-emerald-400" />
-                <span>Back to Student Portal</span>
-              </button>
+              {canGoBack && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAdminNavOpen(false);
+                    handleContextualBack();
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 text-amber-300 bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4 text-amber-300" />
+                  <span>{getBackLabel()}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -1232,15 +1317,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
-        {/* TAB 3: NOTICES & PROMOTIONS */}
+        {/* TAB 3: NOTICES & PROMOTIONS (PROMOTION & BROADCAST MANAGER) */}
         {activeTab === 'notices' && (
           <div className="space-y-6 animate-fadeIn">
-            {/* Top action bar */}
-            <div className="flex items-center justify-between">
+            {/* Top Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Broadcast Feed & Promotions</h3>
-                <p className="text-xs text-slate-500">
-                  Published items immediately display to active students in real time
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                    Broadcast Feed & Promotion Manager
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold">
+                    Real-Time Cloud Sync
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Audit, edit, and control live broadcasts or archive outdated promotions to keep the student portal fast and responsive.
                 </p>
               </div>
 
@@ -1257,33 +1349,368 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   });
                   setIsCreatingNotice(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0 active:scale-95"
               >
                 <Plus className="w-4 h-4" />
-                <span>Publish New Notice</span>
+                <span>Publish New Broadcast</span>
               </button>
             </div>
 
-            {/* Notice Cards List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {loadingNotices ? (
-                <div className="col-span-full py-12 text-center text-slate-500">
-                  Loading notices from Cloud Firestore...
+            {/* Broadcast Metric Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500">Total Broadcasts</span>
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Bell className="w-3.5 h-3.5" />
+                  </div>
                 </div>
-              ) : notices.length === 0 ? (
-                <div className="col-span-full py-12 bg-white rounded-2xl border border-slate-200 text-center p-6 space-y-2">
-                  <Bell className="w-8 h-8 text-slate-400 mx-auto" />
-                  <h4 className="text-sm font-bold text-slate-800">No broadcast notices yet</h4>
-                  <p className="text-xs text-slate-500">
-                    Click "Publish New Notice" to post alerts, examination dates, or promotions.
-                  </p>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
+                  {notices.length}
                 </div>
-              ) : (
-                notices.map((noticeItem) => (
+                <p className="text-[10.5px] text-slate-400 mt-0.5">All historic posts</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-emerald-700">Active / Live</span>
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-emerald-600 mt-2">
+                  {notices.filter((n) => n.active).length}
+                </div>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">Visible to student portals</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-600">Archived / Hidden</span>
+                  <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-700 mt-2">
+                  {notices.filter((n) => !n.active).length}
+                </div>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">Deactivated to save portal bandwidth</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-purple-700">Promotions</span>
+                  <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-purple-600 mt-2">
+                  {notices.filter((n) => n.type === 'promotion').length}
+                </div>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">Marketing & special campaigns</p>
+              </div>
+            </div>
+
+            {/* Filter & Search Toolbar */}
+            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={noticeSearch}
+                  onChange={(e) => setNoticeSearch(e.target.value)}
+                  placeholder="Search broadcasts by title or content keywords..."
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-purple-500 focus:bg-white transition-colors"
+                />
+                {noticeSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setNoticeSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filters & View Mode */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                {/* Category Type Filter */}
+                <select
+                  value={noticeFilterType}
+                  onChange={(e) => setNoticeFilterType(e.target.value as any)}
+                  className="px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-700 font-medium cursor-pointer focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="text">General Announcements</option>
+                  <option value="promotion">Promotions</option>
+                  <option value="alert">Urgent Alerts</option>
+                </select>
+
+                {/* Status Filter */}
+                <select
+                  value={noticeFilterStatus}
+                  onChange={(e) => setNoticeFilterStatus(e.target.value as any)}
+                  className="px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-700 font-medium cursor-pointer focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active Only</option>
+                  <option value="archived">Archived Only</option>
+                </select>
+
+                {/* View Switcher: Table vs Cards */}
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setNoticeViewMode('table')}
+                    className={`p-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${
+                      noticeViewMode === 'table'
+                        ? 'bg-white text-purple-700 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="Table View"
+                  >
+                    <Table className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Table</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNoticeViewMode('cards')}
+                    className={`p-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${
+                      noticeViewMode === 'cards'
+                        ? 'bg-white text-purple-700 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="Cards Grid View"
+                  >
+                    <Grid className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Cards</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Content List Area */}
+            {loadingNotices ? (
+              <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 shadow-xs">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-600 mb-2" />
+                <p className="text-xs font-medium">Syncing broadcasts from Cloud Firestore...</p>
+              </div>
+            ) : filteredNotices.length === 0 ? (
+              <div className="py-14 bg-white rounded-2xl border border-slate-200 text-center p-6 space-y-3 shadow-xs">
+                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
+                  <Bell className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">
+                  {noticeSearch || noticeFilterType !== 'all' || noticeFilterStatus !== 'all'
+                    ? 'No matching broadcasts found'
+                    : 'No broadcast notices yet'}
+                </h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {noticeSearch || noticeFilterType !== 'all' || noticeFilterStatus !== 'all'
+                    ? 'Try clearing your filters or search keywords to view all broadcasts.'
+                    : 'Click "Publish New Broadcast" to post exam dates, promotions, or syllabus updates.'}
+                </p>
+                {(noticeSearch || noticeFilterType !== 'all' || noticeFilterStatus !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNoticeSearch('');
+                      setNoticeFilterType('all');
+                      setNoticeFilterStatus('all');
+                    }}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
+              </div>
+            ) : noticeViewMode === 'table' ? (
+              /* TABLE VIEW: Optimized for viewing, editing, deleting and managing old posts */
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="py-3 px-4">Broadcast & Preview</th>
+                        <th className="py-3 px-4">Category</th>
+                        <th className="py-3 px-4">Post Date & Time</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Visibility Toggle</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredNotices.map((noticeItem) => (
+                        <tr
+                          key={noticeItem.id}
+                          className={`hover:bg-slate-50/80 transition-colors ${
+                            !noticeItem.active ? 'bg-slate-50/40 text-slate-500' : ''
+                          }`}
+                        >
+                          {/* Title & Preview */}
+                          <td className="py-3 px-4">
+                            <div className="flex items-start gap-3">
+                              {noticeItem.imageUrl ? (
+                                <img
+                                  src={noticeItem.imageUrl}
+                                  alt={noticeItem.title}
+                                  className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 cursor-pointer"
+                                  onClick={() => setViewingNotice(noticeItem)}
+                                />
+                              ) : (
+                                <div
+                                  onClick={() => setViewingNotice(noticeItem)}
+                                  className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0 cursor-pointer"
+                                >
+                                  <Bell className="w-5 h-5" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingNotice(noticeItem)}
+                                  className="font-bold text-slate-900 hover:text-purple-600 text-left text-xs sm:text-sm line-clamp-1 cursor-pointer transition-colors"
+                                  title="Click to view full notice"
+                                >
+                                  {noticeItem.title}
+                                </button>
+                                <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                                  {noticeItem.content}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Category */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                                noticeItem.type === 'alert'
+                                  ? 'bg-rose-100 text-rose-800 border-rose-200'
+                                  : noticeItem.type === 'promotion'
+                                  ? 'bg-purple-100 text-purple-800 border-purple-200'
+                                  : 'bg-blue-100 text-blue-800 border-blue-200'
+                              }`}
+                            >
+                              {noticeItem.type}
+                            </span>
+                          </td>
+
+                          {/* Date & Time */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="text-slate-800 font-medium">
+                              {new Date(noticeItem.createdAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </div>
+                            <div className="text-[10.5px] text-slate-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>
+                                {new Date(noticeItem.createdAt).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold ${
+                                noticeItem.active
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  noticeItem.active ? 'bg-emerald-500' : 'bg-slate-400'
+                                }`}
+                              />
+                              <span>{noticeItem.active ? 'Active (Live)' : 'Archived'}</span>
+                            </span>
+                          </td>
+
+                          {/* Visibility Toggle */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleNoticeActive(noticeItem)}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold cursor-pointer border transition-colors ${
+                                noticeItem.active
+                                  ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                              }`}
+                              title={
+                                noticeItem.active
+                                  ? 'Deactivate to reduce portal load'
+                                  : 'Reactivate to display on portal'
+                              }
+                            >
+                              {noticeItem.active ? 'Archive' : 'Make Live'}
+                            </button>
+                          </td>
+
+                          {/* Action Buttons */}
+                          <td className="py-3 px-4 whitespace-nowrap text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setViewingNotice(noticeItem)}
+                                className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg cursor-pointer"
+                                title="View Notice Details"
+                              >
+                                <Eye className="w-4 h-4 text-purple-600" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingNotice(noticeItem);
+                                  setNoticeForm({
+                                    title: noticeItem.title,
+                                    content: noticeItem.content,
+                                    type: noticeItem.type,
+                                    imageUrl: noticeItem.imageUrl || '',
+                                    active: noticeItem.active,
+                                  });
+                                  setIsCreatingNotice(true);
+                                }}
+                                className="p-1.5 hover:bg-slate-100 text-blue-600 rounded-lg cursor-pointer"
+                                title="Edit Notice"
+                              >
+                                <Edit2 className="w-4 h-4 text-blue-600" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteNotice(noticeItem.id)}
+                                className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
+                                title="Delete Notice Permanently"
+                              >
+                                <Trash2 className="w-4 h-4 text-rose-600" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              /* CARD GRID VIEW */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredNotices.map((noticeItem) => (
                   <div
                     key={noticeItem.id}
-                    className={`bg-white rounded-2xl border p-4 shadow-xs flex flex-col justify-between transition-all ${
-                      noticeItem.active ? 'border-slate-200' : 'border-slate-200 opacity-60 bg-slate-50'
+                    className={`bg-white rounded-2xl border p-4 shadow-xs flex flex-col justify-between transition-all hover:shadow-md ${
+                      noticeItem.active ? 'border-slate-200' : 'border-slate-200 opacity-65 bg-slate-50'
                     }`}
                   >
                     <div>
@@ -1301,24 +1728,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {noticeItem.type}
                         </span>
 
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleNoticeActive(noticeItem)}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                              noticeItem.active
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {noticeItem.active ? 'Live' : 'Hidden'}
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleNoticeActive(noticeItem)}
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                            noticeItem.active
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                          }`}
+                        >
+                          {noticeItem.active ? '● Live' : '○ Archived'}
+                        </button>
                       </div>
 
-                      {/* Image Banner if available */}
+                      {/* Image Banner */}
                       {noticeItem.imageUrl && (
-                        <div className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 mb-3 border border-slate-200">
+                        <div
+                          className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 mb-3 border border-slate-200 cursor-pointer"
+                          onClick={() => setViewingNotice(noticeItem)}
+                        >
                           <img
                             src={noticeItem.imageUrl}
                             alt={noticeItem.title}
@@ -1327,7 +1755,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                       )}
 
-                      <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                      <h4
+                        className="text-sm font-bold text-slate-900 leading-snug cursor-pointer hover:text-purple-600 transition-colors"
+                        onClick={() => setViewingNotice(noticeItem)}
+                      >
                         {noticeItem.title}
                       </h4>
 
@@ -1338,9 +1769,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     {/* Bottom controls */}
                     <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-                      <span>{new Date(noticeItem.createdAt).toLocaleDateString()}</span>
+                      <div className="flex items-center gap-1 text-[10.5px]">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        <span>
+                          {new Date(noticeItem.createdAt).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </span>
+                      </div>
 
                       <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setViewingNotice(noticeItem)}
+                          className="p-1 hover:bg-purple-50 text-purple-600 rounded cursor-pointer"
+                          title="View Notice Details"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => {
@@ -1371,9 +1820,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -1945,6 +2394,147 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: VIEW NOTICE / PROMOTION FULL DETAILS */}
+      {viewingNotice && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl border border-slate-200 animate-fadeIn">
+            {/* Modal Header */}
+            <div className="p-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                    viewingNotice.type === 'alert'
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-400/30'
+                      : viewingNotice.type === 'promotion'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-400/30'
+                      : 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
+                  }`}
+                >
+                  {viewingNotice.type}
+                </span>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    viewingNotice.active
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                      : 'bg-slate-700 text-slate-300'
+                  }`}
+                >
+                  {viewingNotice.active ? '● Live on Portal' : '○ Archived / Hidden'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingNotice(null)}
+                className="text-white/80 hover:text-white cursor-pointer p-1 rounded-lg hover:bg-white/10"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                  {viewingNotice.title}
+                </h3>
+                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>
+                    Posted on: {new Date(viewingNotice.createdAt).toLocaleString('en-IN', {
+                      weekday: 'short',
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </p>
+              </div>
+
+              {viewingNotice.imageUrl && (
+                <div className="w-full max-h-72 rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-xs flex items-center justify-center">
+                  <img
+                    src={viewingNotice.imageUrl}
+                    alt={viewingNotice.title}
+                    className="w-full h-full max-h-72 object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <p className="text-xs sm:text-sm text-slate-800 whitespace-pre-wrap leading-relaxed font-sans">
+                  {viewingNotice.content}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleToggleNoticeActive(viewingNotice);
+                  setViewingNotice((prev) => (prev ? { ...prev, active: !prev.active } : null));
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                  viewingNotice.active
+                    ? 'bg-amber-100 text-amber-900 hover:bg-amber-200'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+              >
+                <span>{viewingNotice.active ? 'Archive / Hide Notice' : 'Activate / Make Live'}</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const noticeToEdit = viewingNotice;
+                    setViewingNotice(null);
+                    setEditingNotice(noticeToEdit);
+                    setNoticeForm({
+                      title: noticeToEdit.title,
+                      content: noticeToEdit.content,
+                      type: noticeToEdit.type,
+                      imageUrl: noticeToEdit.imageUrl || '',
+                      active: noticeToEdit.active,
+                    });
+                    setIsCreatingNotice(true);
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1 cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Notice</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const id = viewingNotice.id;
+                    setViewingNotice(null);
+                    await handleDeleteNotice(id);
+                  }}
+                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold rounded-xl flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setViewingNotice(null)}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold rounded-xl cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

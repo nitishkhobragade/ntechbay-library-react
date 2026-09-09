@@ -382,17 +382,6 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
             <HelpCircle className="w-3 h-3 text-amber-300" />
             <span>Need assistance or missing syllabus? Contact Er. Nitish Khobragade (NK)</span>
           </button>
-
-          {onOpenAdmin && (
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              className="hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1 text-[10.5px] text-white/70"
-            >
-              <ShieldCheck className="w-3 h-3" />
-              <span>Admin Access</span>
-            </button>
-          )}
         </div>
       </div>
     </div>

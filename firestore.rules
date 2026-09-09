@@ -38,8 +38,8 @@ service cloud.firestore {
 
     // Notices Collection
     match /notices/{noticeId} {
-      // Students can read active notices, admin can read all
-      allow read: if isSignedIn();
+      // Students and visitors can read active broadcast notices
+      allow read: if true;
       // Only admins can create, update, or delete notices
       allow create, update, delete: if isAdmin();
     }

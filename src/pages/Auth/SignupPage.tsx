@@ -308,7 +308,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                 First Name <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <User className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <User className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   name="firstName"
@@ -316,7 +316,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                   onChange={handleInputChange}
                   placeholder="Rahul"
                   required
-                  className="w-full pl-7 pr-2 py-1.5 bg-white/75 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  className="w-full pl-8.5 pr-2 py-1.5 bg-white/75 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                 />
               </div>
             </div>
@@ -356,7 +356,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
               )}
             </div>
             <div className="relative">
-              <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="email"
                 name="email"
@@ -364,7 +364,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                 onChange={handleInputChange}
                 placeholder="student@rgpv.ac.in"
                 required
-                className={`w-full pl-7 pr-2 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 transition-all ${
+                className={`w-full pl-8.5 pr-2 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 transition-all ${
                   !isEmailEmpty && !isEmailValid
                     ? 'border-rose-400 ring-1 ring-rose-200 bg-rose-50/20'
                     : !isEmailEmpty && isEmailValid
@@ -394,7 +394,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                 )}
               </div>
               <div className="relative">
-                <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="tel"
                   name="phone"
@@ -434,7 +434,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                     const newVal = (curVal.slice(0, start) + cleanDigits + curVal.slice(end)).replace(/[^0-9]/g, '').slice(0, 10);
                     setFormData((prev) => ({ ...prev, phone: newVal }));
                   }}
-                  className={`w-full pl-7 pr-2 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all ${
+                  className={`w-full pl-8.5 pr-2 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all ${
                     formData.phone.length === 10
                       ? 'border-emerald-500'
                       : formData.phone.length > 0
@@ -622,7 +622,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                 )}
               </div>
               <div className="relative">
-                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
@@ -630,7 +630,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                   onChange={handleInputChange}
                   placeholder="••••••"
                   required
-                  className={`w-full pl-7 pr-7 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 transition-all ${
+                  className={`w-full pl-8.5 pr-8 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 transition-all ${
                     isPasswordTooShort
                       ? 'border-amber-400 ring-1 ring-amber-100'
                       : isPasswordValid
@@ -661,7 +661,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                 )}
               </div>
               <div className="relative">
-                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
@@ -669,7 +669,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                   onChange={handleInputChange}
                   placeholder="••••••"
                   required
-                  className={`w-full pl-7 pr-7 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 transition-all ${
+                  className={`w-full pl-8.5 pr-8 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 transition-all ${
                     isPasswordMismatch
                       ? 'border-rose-400 ring-1 ring-rose-200'
                       : isPasswordMatch && isPasswordValid

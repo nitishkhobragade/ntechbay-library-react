@@ -476,8 +476,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>Homepage</span>
                 </button>
 
-                {/* Course Library Link */}
-                {onGoCourses && (
+                {/* Course Library Link (hidden on homepage when user is not logged in) */}
+                {onGoCourses && !(currentView === 'home' && !user) && (
                   <button
                     type="button"
                     onClick={() => {

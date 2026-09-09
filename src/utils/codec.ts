@@ -22,29 +22,50 @@ export function a2b(plainText: string): string {
 }
 
 /**
+ * Normalizes and sanitizes URLs, correcting common typos like 'drive^google.com' or 'drive_google.com'
+ * to guarantee that all opened links succeed.
+ */
+export function normalizeUrl(url: string): string {
+  if (!url) return '';
+  let cleaned = url.trim();
+  // Correct typographical domain variations found in legacy course link datasets
+  if (cleaned.includes('drive^google.com')) {
+    cleaned = cleaned.replace(/drive\^google\.com/g, 'drive.google.com');
+  }
+  if (cleaned.includes('drive_google.com')) {
+    cleaned = cleaned.replace(/drive_google\.com/g, 'drive.google.com');
+  }
+  return cleaned;
+}
+
+/**
  * b2a JavaScript Decoder: Decodes Base64 encoded link into standard URL
  */
 export function b2a(encodedString: string): string {
   if (!encodedString) return '';
-  // If it's already a standard URL, return it directly
+  const trimmed = encodedString.trim();
+
+  // If it's already a standard URL, return sanitized directly
   if (
-    encodedString.startsWith('http://') ||
-    encodedString.startsWith('https://') ||
-    encodedString.startsWith('mailto:') ||
-    encodedString.startsWith('blob:')
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('mailto:') ||
+    trimmed.startsWith('blob:')
   ) {
-    return encodedString;
+    return normalizeUrl(trimmed);
   }
 
   try {
-    const binaryStr = atob(encodedString);
+    const binaryStr = atob(trimmed);
+    let decoded = binaryStr;
     try {
-      return decodeURIComponent(escape(binaryStr));
+      decoded = decodeURIComponent(escape(binaryStr));
     } catch {
-      return binaryStr;
+      decoded = binaryStr;
     }
+    return normalizeUrl(decoded);
   } catch (error) {
     console.warn('b2a decoding fallback for string:', encodedString, error);
-    return encodedString;
+    return normalizeUrl(trimmed);
   }
 }

@@ -183,10 +183,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     Email Address or Mobile Phone <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 flex items-center gap-1 pointer-events-none">
-                      <Mail className="w-3.5 h-3.5" />
-                      <span className="text-slate-300">/</span>
-                      <Phone className="w-3 h-3" />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 flex items-center gap-1.5 pointer-events-none select-none">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="text-slate-300 text-xs font-light select-none">/</span>
+                      <Phone className="w-3 h-3 text-slate-400 shrink-0" />
                     </div>
                     <input
                       id="reset-identifier"
@@ -195,7 +195,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       onChange={(e) => setIdentifier(e.target.value)}
                       placeholder="student@rgpv.ac.in or 9876543210"
                       required
-                      className="w-full pl-11 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full pl-[74px] pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
                     />
                   </div>
                 </div>
@@ -235,10 +235,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 Email Address or Phone <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 flex items-center gap-1 pointer-events-none">
-                  <Mail className="w-3.5 h-3.5" />
-                  <span className="text-slate-300">/</span>
-                  <Phone className="w-3 h-3" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 flex items-center gap-1.5 pointer-events-none select-none">
+                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="text-slate-300 text-xs font-light select-none">/</span>
+                  <Phone className="w-3 h-3 text-slate-400 shrink-0" />
                 </div>
                 <input
                   id="login-identifier"
@@ -247,7 +247,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="student@rgpv.ac.in or 9876543210"
                   required
-                  className="w-full pl-11 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full pl-[74px] pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
                 />
               </div>
             </div>
@@ -271,7 +271,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </button>
               </div>
               <div className="relative">
-                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
@@ -279,7 +279,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full pl-9 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all"
                 />
                 <button
                   type="button"
