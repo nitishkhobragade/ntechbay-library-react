@@ -17,7 +17,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { compressImageTo50KB } from '../../utils/imageCompressor';
+import { compressImageTo50to100KB } from '../../utils/imageCompressor';
 
 interface SignupPageProps {
   onSwitchToLogin: () => void;
@@ -76,7 +76,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
   const isFormValid =
     formData.firstName.trim().length > 0 &&
     formData.lastName.trim().length > 0 &&
-    formData.phone.replace(/[^0-9]/g, '').length >= 10 &&
+    formData.phone.replace(/[^0-9]/g, '').length === 10 &&
     isDobValid &&
     isEmailValid &&
     isPasswordValid &&
@@ -84,9 +84,20 @@ export const SignupPage: React.FC<SignupPageProps> = ({
     Boolean(photoBase64);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    // Limit phone and altPhone strictly to numeric digits only and maximum 10 characters
+    if (name === 'phone' || name === 'altPhone') {
+      const cleanDigits = value.replace(/[^0-9]/g, '').slice(0, 10);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: cleanDigits,
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
@@ -103,8 +114,8 @@ export const SignupPage: React.FC<SignupPageProps> = ({
     setCompressingImage(true);
 
     try {
-      // Compress strictly to <= 50KB using Canvas engine
-      const compressed = await compressImageTo50KB(file);
+      // Compress strictly to 50 KB – 100 KB range using Canvas engine
+      const compressed = await compressImageTo50to100KB(file);
       setPhotoBase64(compressed.base64);
       setPhotoSizeKB(compressed.sizeKB);
     } catch (err: any) {
@@ -125,8 +136,13 @@ export const SignupPage: React.FC<SignupPageProps> = ({
     }
 
     const cleanPhone = formData.phone.trim().replace(/[^0-9]/g, '');
-    if (cleanPhone.length < 10) {
-      setError('Please enter a valid 10-digit mobile number.');
+    if (cleanPhone.length !== 10) {
+      setError('Mobile number must be exactly 10 digits (e.g. 9876543210).');
+      return;
+    }
+
+    if (formData.altPhone && formData.altPhone.trim().replace(/[^0-9]/g, '').length !== 10) {
+      setError('Alternative phone number must also be exactly 10 digits if provided.');
       return;
     }
 
@@ -265,21 +281,21 @@ export const SignupPage: React.FC<SignupPageProps> = ({
               </button>
 
               {photoSizeKB !== null && !compressingImage && (
-                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-0.5">
+                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-0.5 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  <span>{photoSizeKB}KB / 50KB limit</span>
+                  <span>{photoSizeKB} KB (Target: 50–100 KB)</span>
                 </span>
               )}
 
               {compressingImage && (
                 <span className="text-[10px] text-blue-600 animate-pulse font-medium">
-                  Compressing...
+                  Compressing (50–100 KB)...
                 </span>
               )}
 
               {!photoBase64 && !compressingImage && (
                 <span className="text-[10px] text-slate-500 font-medium">
-                  Auto-compressed &le; 50KB
+                  Auto-compressed 50 KB – 100 KB
                 </span>
               )}
             </div>
@@ -359,12 +375,24 @@ export const SignupPage: React.FC<SignupPageProps> = ({
             </div>
           </div>
 
-          {/* Phone & Alt Phone: Side-by-side 2 cols on mobile */}
+          {/* Phone & Alt Phone: Side-by-side 2 cols on mobile with strict 10 digits limit */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Phone <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="text-[11px] font-bold text-slate-700">
+                  Mobile (10 Digits) <span className="text-rose-500">*</span>
+                </label>
+                {formData.phone.length > 0 && formData.phone.length < 10 && (
+                  <span className="text-[9px] text-amber-600 font-bold">
+                    {10 - formData.phone.length} left
+                  </span>
+                )}
+                {formData.phone.length === 10 && (
+                  <span className="text-[9px] text-emerald-600 font-bold flex items-center gap-0.5">
+                    <CheckCircle2 className="w-2.5 h-2.5" /> 10 digits
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -372,23 +400,105 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
+                  maxLength={10}
+                  pattern="[0-9]{10}"
+                  inputMode="numeric"
                   placeholder="9876543210"
                   required
-                  className="w-full pl-7 pr-2 py-1.5 bg-white/75 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  onKeyDown={(e) => {
+                    if (
+                      ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) ||
+                      e.ctrlKey ||
+                      e.metaKey
+                    ) {
+                      return;
+                    }
+                    if (!/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                      return;
+                    }
+                    const target = e.target as HTMLInputElement;
+                    const selectionLength = (target.selectionEnd ?? 0) - (target.selectionStart ?? 0);
+                    if (target.value.length >= 10 && selectionLength === 0) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pasteData = e.clipboardData.getData('text');
+                    const cleanDigits = pasteData.replace(/[^0-9]/g, '').slice(0, 10);
+                    const target = e.target as HTMLInputElement;
+                    const curVal = target.value;
+                    const start = target.selectionStart ?? 0;
+                    const end = target.selectionEnd ?? 0;
+                    const newVal = (curVal.slice(0, start) + cleanDigits + curVal.slice(end)).replace(/[^0-9]/g, '').slice(0, 10);
+                    setFormData((prev) => ({ ...prev, phone: newVal }));
+                  }}
+                  className={`w-full pl-7 pr-2 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all ${
+                    formData.phone.length === 10
+                      ? 'border-emerald-500'
+                      : formData.phone.length > 0
+                      ? 'border-amber-400'
+                      : 'border-slate-300'
+                  }`}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Alt Phone <span className="text-slate-400 font-normal">(Opt)</span>
-              </label>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="text-[11px] font-bold text-slate-700">
+                  Alt Phone <span className="text-slate-400 font-normal">(10 Digits)</span>
+                </label>
+                {formData.altPhone.length > 0 && formData.altPhone.length < 10 && (
+                  <span className="text-[9px] text-amber-600 font-bold">
+                    {10 - formData.altPhone.length} left
+                  </span>
+                )}
+                {formData.altPhone.length === 10 && (
+                  <span className="text-[9px] text-emerald-600 font-bold flex items-center gap-0.5">
+                    <CheckCircle2 className="w-2.5 h-2.5" /> 10 digits
+                  </span>
+                )}
+              </div>
               <input
                 type="tel"
                 name="altPhone"
                 value={formData.altPhone}
                 onChange={handleInputChange}
-                placeholder="Optional"
+                maxLength={10}
+                pattern="[0-9]{10}"
+                inputMode="numeric"
+                placeholder="Optional 10 digits"
+                onKeyDown={(e) => {
+                  if (
+                    ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) ||
+                    e.ctrlKey ||
+                    e.metaKey
+                  ) {
+                    return;
+                  }
+                  if (!/[0-9]/.test(e.key)) {
+                    e.preventDefault();
+                    return;
+                  }
+                  const target = e.target as HTMLInputElement;
+                  const selectionLength = (target.selectionEnd ?? 0) - (target.selectionStart ?? 0);
+                  if (target.value.length >= 10 && selectionLength === 0) {
+                    e.preventDefault();
+                  }
+                }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const pasteData = e.clipboardData.getData('text');
+                  const cleanDigits = pasteData.replace(/[^0-9]/g, '').slice(0, 10);
+                  const target = e.target as HTMLInputElement;
+                  const curVal = target.value;
+                  const start = target.selectionStart ?? 0;
+                  const end = target.selectionEnd ?? 0;
+                  const newVal = (curVal.slice(0, start) + cleanDigits + curVal.slice(end)).replace(/[^0-9]/g, '').slice(0, 10);
+                  setFormData((prev) => ({ ...prev, altPhone: newVal }));
+                }}
                 className="w-full px-2.5 py-1.5 bg-white/75 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
               />
             </div>

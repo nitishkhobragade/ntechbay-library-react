@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   BookOpen,
   Mail,
-  Lock,
   ShieldCheck,
   User,
   LogIn,
@@ -19,8 +18,6 @@ import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   onOpenContact: () => void;
-  isUnlocked: boolean;
-  onLock?: () => void;
   onOpenAdmin?: () => void;
   onOpenLogin: () => void;
   onOpenSignup: () => void;
@@ -34,8 +31,6 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenContact,
-  isUnlocked,
-  onLock,
   onOpenAdmin,
   onOpenLogin,
   onOpenSignup,
@@ -104,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {/* Center/Quick View Switcher on tablet/desktop */}
-        {(user || isUnlocked) && (
+        {(user || currentView === 'courses') && (
           <div className="hidden sm:flex items-center bg-blue-700/60 p-0.5 rounded-xl border border-white/20">
             <button
               type="button"
@@ -196,20 +191,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label="Admin Panel"
             >
               <ShieldCheck className="w-4 h-4 text-amber-300" />
-            </button>
-          )}
-
-          {/* Auto-Lock status button */}
-          {isUnlocked && onLock && (
-            <button
-              id="lock-nav-button"
-              type="button"
-              onClick={onLock}
-              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer border border-white/20 shadow-xs"
-              title="Lock Library"
-              aria-label="Lock Library"
-            >
-              <Lock className="w-3.5 h-3.5 text-amber-200" />
             </button>
           )}
 
@@ -496,12 +477,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 {/* Course Library Link */}
-                {(user || isUnlocked) && (
+                {onGoCourses && (
                   <button
                     type="button"
                     onClick={() => {
                       setIsSidebarOpen(false);
-                      if (onGoCourses) onGoCourses();
+                      onGoCourses();
                     }}
                     className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 cursor-pointer transition-colors ${
                       currentView === 'courses'
@@ -569,23 +550,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                   <span>Contact Admin & Help</span>
                 </button>
-
-                {/* Lock Library (if unlocked) */}
-                {isUnlocked && onLock && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSidebarOpen(false);
-                      onLock();
-                    }}
-                    className="w-full px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 text-xs font-semibold flex items-center gap-2.5 cursor-pointer transition-colors"
-                  >
-                    <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center">
-                      <Lock className="w-3.5 h-3.5 text-amber-600" />
-                    </div>
-                    <span>Lock Library Session</span>
-                  </button>
-                )}
 
                 {/* PROMINENT SIGN OUT BUTTON INSIDE MENU LIST */}
                 {user && (

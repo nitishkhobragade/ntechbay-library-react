@@ -13,7 +13,6 @@ export interface AppSettings {
   announcementText: string;
   isAnnouncementEnabled: boolean;
   adminPassword: string;
-  studentPassword: string;
 }
 
 const CUSTOM_LINKS_KEY = 'ntechbay_custom_links';
@@ -23,7 +22,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   announcementText: '📢 Welcome to NTechBay-Library! All RGPV B.Tech, Polytechnic, MBA & M.Tech resources are updated.',
   isAnnouncementEnabled: false,
   adminPassword: 'admin@nk',
-  studentPassword: 'nitishkhobragade',
 };
 
 /**
@@ -101,12 +99,7 @@ export function getAppSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(APP_SETTINGS_KEY);
     if (!raw) {
-      // Check legacy student password if available
-      const legacyStudentPwd = localStorage.getItem('ntechbay_password');
-      return {
-        ...DEFAULT_APP_SETTINGS,
-        studentPassword: legacyStudentPwd || DEFAULT_APP_SETTINGS.studentPassword,
-      };
+      return DEFAULT_APP_SETTINGS;
     }
     return { ...DEFAULT_APP_SETTINGS, ...JSON.parse(raw) };
   } catch (e) {
@@ -123,10 +116,6 @@ export function saveAppSettings(settings: Partial<AppSettings>): AppSettings {
     const current = getAppSettings();
     const updated: AppSettings = { ...current, ...settings };
     localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
-    // Also synchronize the student password in legacy key for backward compatibility
-    if (settings.studentPassword) {
-      localStorage.setItem('ntechbay_password', settings.studentPassword);
-    }
     return updated;
   } catch (e) {
     console.error('Failed to save app settings:', e);

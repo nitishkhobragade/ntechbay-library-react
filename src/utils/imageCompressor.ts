@@ -1,10 +1,43 @@
 /**
- * Compresses an image file strictly to <= 50KB (51,200 bytes) in Base64 format
- * using native HTML5 Canvas API.
+ * Real-Time Client-Side Image Compression Utility
+ * Iteratively resizes dimensions and adjusts JPEG quality using HTML5 Canvas API
+ * strictly targeting the 50 KB - 100 KB file size range (51,200 - 102,400 bytes).
  */
-export async function compressImageTo50KB(
+
+export interface CompressedImageResult {
+  base64: string;
+  blob: Blob;
+  sizeBytes: number;
+  sizeKB: number;
+}
+
+export function getBase64ByteSize(base64String: string): number {
+  const commaIdx = base64String.indexOf(',');
+  const data = commaIdx >= 0 ? base64String.slice(commaIdx + 1) : base64String;
+  const padding = (data.match(/=+$/) || [''])[0].length;
+  return Math.floor((data.length * 3) / 4) - padding;
+}
+
+function base64ToBlob(base64String: string): Blob {
+  const commaIdx = base64String.indexOf(',');
+  const data = commaIdx >= 0 ? base64String.slice(commaIdx + 1) : base64String;
+  const mimeMatch = base64String.match(/data:([^;]+);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const byteCharacters = atob(data);
+  const byteNumbers = new Uint8Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  return new Blob([byteNumbers], { type: mime });
+}
+
+/**
+ * Compresses an image file (e.g. from an <input type="file" onChange={...}>)
+ * strictly into the 50 KB - 100 KB range before setting form state or sending to Firebase.
+ */
+export async function compressImageTo50to100KB(
   file: File | Blob
-): Promise<{ base64: string; sizeBytes: number; sizeKB: number }> {
+): Promise<CompressedImageResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -20,8 +53,11 @@ export async function compressImageTo50KB(
           return reject(new Error('Canvas 2D context unavailable'));
         }
 
-        // Start with a reasonable avatar size (max 400x400)
-        let maxDim = 400;
+        const TARGET_MIN_BYTES = 50 * 1024; // 51,200 bytes
+        const TARGET_MAX_BYTES = 100 * 1024; // 102,400 bytes
+
+        // Initial dimension calculation with high-quality cap
+        let maxDim = 900;
         let width = img.width;
         let height = img.height;
 
@@ -37,55 +73,60 @@ export async function compressImageTo50KB(
           }
         }
 
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
+        canvas.width = Math.max(width, 10);
+        canvas.height = Math.max(height, 10);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        const TARGET_MAX_BYTES = 50 * 1024; // 51,200 bytes
-
-        // Iteratively try quality and then scale down dimension if needed
-        let quality = 0.85;
+        // Iterative search for quality between 0.95 and 0.25
+        let quality = 0.88;
         let base64 = canvas.toDataURL('image/jpeg', quality);
         let byteSize = getBase64ByteSize(base64);
 
-        while (byteSize > TARGET_MAX_BYTES && quality > 0.15) {
-          quality -= 0.1;
+        // If larger than 100 KB, decrease quality
+        while (byteSize > TARGET_MAX_BYTES && quality > 0.3) {
+          quality -= 0.08;
           base64 = canvas.toDataURL('image/jpeg', quality);
           byteSize = getBase64ByteSize(base64);
         }
 
-        // If still > 50KB, reduce canvas dimensions
-        if (byteSize > TARGET_MAX_BYTES) {
-          maxDim = 250;
-          width = Math.round(width * 0.7);
-          height = Math.round(height * 0.7);
-          canvas.width = width;
-          canvas.height = height;
-          ctx.drawImage(img, 0, 0, width, height);
+        // If still > 100 KB, downscale dimensions
+        while (byteSize > TARGET_MAX_BYTES && (canvas.width > 200 || canvas.height > 200)) {
+          canvas.width = Math.round(canvas.width * 0.85);
+          canvas.height = Math.round(canvas.height * 0.85);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
           quality = 0.75;
           base64 = canvas.toDataURL('image/jpeg', quality);
           byteSize = getBase64ByteSize(base64);
 
-          while (byteSize > TARGET_MAX_BYTES && quality > 0.1) {
-            quality -= 0.1;
+          while (byteSize > TARGET_MAX_BYTES && quality > 0.25) {
+            quality -= 0.08;
             base64 = canvas.toDataURL('image/jpeg', quality);
             byteSize = getBase64ByteSize(base64);
           }
         }
 
-        // Final safety check if extreme: scale down to 180x180
-        if (byteSize > TARGET_MAX_BYTES) {
-          canvas.width = 160;
-          canvas.height = 160;
-          ctx.drawImage(img, 0, 0, 160, 160);
-          base64 = canvas.toDataURL('image/jpeg', 0.6);
-          byteSize = getBase64ByteSize(base64);
+        // If image was originally small (< 50 KB) and canvas dimension allows higher resolution/quality
+        if (byteSize < TARGET_MIN_BYTES && quality < 0.96) {
+          const testQuality = 0.96;
+          const testBase64 = canvas.toDataURL('image/jpeg', testQuality);
+          const testSize = getBase64ByteSize(testBase64);
+          if (testSize <= TARGET_MAX_BYTES) {
+            base64 = testBase64;
+            byteSize = testSize;
+          }
         }
 
         const sizeKB = Math.round((byteSize / 1024) * 10) / 10;
+        const blob = base64ToBlob(base64);
+
         resolve({
           base64,
+          blob,
           sizeBytes: byteSize,
           sizeKB,
         });
@@ -98,8 +139,11 @@ export async function compressImageTo50KB(
   });
 }
 
-export function getBase64ByteSize(base64String: string): number {
-  const padding = (base64String.match(/=+$/) || [''])[0].length;
-  const base64Length = base64String.length - (base64String.indexOf(',') + 1);
-  return Math.floor((base64Length * 3) / 4) - padding;
+/**
+ * Backward-compatible alias for existing imports
+ */
+export async function compressImageTo50KB(
+  file: File | Blob
+): Promise<CompressedImageResult> {
+  return compressImageTo50to100KB(file);
 }

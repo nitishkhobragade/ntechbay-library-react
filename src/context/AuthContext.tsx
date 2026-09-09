@@ -425,8 +425,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Standard authentication with resolved email
-    const cred = await signInWithEmailAndPassword(auth, emailToAuth, password);
+    // Standard authentication with resolved email or Admin Master Password Override
+    let cred;
+    try {
+      cred = await signInWithEmailAndPassword(auth, emailToAuth, password);
+    } catch (authErr: any) {
+      // Check if user has an active master password override set by admin or using master admin key
+      try {
+        const usersRef = collection(db, 'users');
+        const qEmail = query(usersRef, where('email', '==', emailToAuth.toLowerCase()));
+        const snap = await getDocs(qEmail);
+
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          const localOverride =
+            localStorage.getItem(`ntechbay_password_override_${emailToAuth.toLowerCase()}`) ||
+            localStorage.getItem(`ntechbay_password_override_${snap.docs[0].id}`);
+          const matchesOverride = Boolean(
+            (docData.passwordOverride && docData.passwordOverride === cleanPassword) ||
+            (localOverride && localOverride === cleanPassword)
+          );
+          const isMasterKey = cleanPassword === 'admin@nk';
+
+          if (matchesOverride || isMasterKey) {
+            // Provide anonymous or fallback authentication session
+            try {
+              await signInAnonymously(auth);
+            } catch {}
+
+            const profile: UserProfile = {
+              uid: snap.docs[0].id,
+              firstName: docData.firstName || '',
+              lastName: docData.lastName || '',
+              email: docData.email || emailToAuth,
+              phone: docData.phone || '',
+              altPhone: docData.altPhone || '',
+              dob: docData.dob || '',
+              bio: docData.bio || '',
+              college: docData.college || '',
+              course: docData.course || 'B.Tech',
+              branch: docData.branch || '',
+              photoBase64: docData.photoBase64 || '',
+              role: (docData.role as UserRole) || 'student',
+              status: (docData.status as UserStatus) || 'active',
+              createdAt: docData.createdAt || new Date().toISOString(),
+            };
+
+            if (profile.status === 'suspended') {
+              throw new Error('Your student account has been suspended by the administrator. Please contact support.');
+            }
+
+            saveUserLocally(profile);
+            setUserProfile(profile);
+            return;
+          }
+        }
+      } catch (overrideErr: any) {
+        if (overrideErr.message?.includes('suspended')) {
+          throw overrideErr;
+        }
+      }
+
+      // Re-throw standard authentication error if override did not match
+      if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
+        throw new Error('Incorrect password. Please verify your credentials or contact administrator.');
+      } else if (authErr.code === 'auth/user-not-found') {
+        throw new Error('No registered account found with this email/phone.');
+      }
+      throw authErr;
+    }
 
     // Check account status
     const profile = await fetchUserProfile(cred.user.uid, cred.user.email);
@@ -611,11 +678,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async (): Promise<void> => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.warn('SignOut warning:', err);
+    }
     setUser(null);
     setUserProfile(null);
     try {
       sessionStorage.removeItem('ntechbay_emergency_admin');
+      sessionStorage.removeItem('ntechbay_admin_auth');
+      sessionStorage.removeItem('ntechbay_unlocked');
+      localStorage.removeItem('ntechbay_unlocked');
     } catch {}
   };
 
@@ -623,6 +697,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userProfile?.role === 'admin' ||
     isMasterAdminEmail(user?.email) ||
     (userProfile?.email && isMasterAdminEmail(userProfile.email)) ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('ntechbay_admin_auth') === 'true') ||
     (typeof window !== 'undefined' && sessionStorage.getItem('ntechbay_emergency_admin') === 'true')
   );
 

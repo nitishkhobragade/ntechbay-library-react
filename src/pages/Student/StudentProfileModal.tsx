@@ -21,7 +21,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { compressImageTo50KB } from '../../utils/imageCompressor';
+import { compressImageTo50to100KB } from '../../utils/imageCompressor';
 
 interface StudentProfileModalProps {
   isOpen: boolean;
@@ -95,7 +95,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     setCompressing(true);
     setErrorMsg(null);
     try {
-      const compressed = await compressImageTo50KB(file);
+      const compressed = await compressImageTo50to100KB(file);
       setPhotoBase64(compressed.base64);
       setPhotoSizeKB(compressed.sizeKB);
     } catch (err) {
@@ -107,14 +107,25 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   };
 
   const handleSave = async () => {
+    const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+    if (cleanPhone && cleanPhone.length !== 10) {
+      setErrorMsg('Primary mobile number must be exactly 10 digits.');
+      return;
+    }
+    const cleanAltPhone = altPhone.trim().replace(/[^0-9]/g, '');
+    if (cleanAltPhone && cleanAltPhone.length !== 10) {
+      setErrorMsg('Alternative phone number must be exactly 10 digits if provided.');
+      return;
+    }
+
     setSaving(true);
     setErrorMsg(null);
     try {
       await updateUserProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        phone: phone.trim(),
-        altPhone: altPhone.trim(),
+        phone: cleanPhone,
+        altPhone: cleanAltPhone,
         dob: dob.trim(),
         bio: bio.trim(),
         college: college.trim(),
@@ -263,13 +274,14 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
 
           {compressing && (
             <div className="text-xs text-blue-600 font-medium animate-pulse">
-              Compressing new photo to &le; 50KB...
+              Compressing new photo (50–100 KB)...
             </div>
           )}
 
           {photoSizeKB && (
-            <div className="text-xs text-emerald-600 font-medium">
-              New photo optimized: {photoSizeKB} KB / 50 KB limit
+            <div className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>New photo optimized: {photoSizeKB} KB (Target: 50–100 KB)</span>
             </div>
           )}
 
@@ -467,7 +479,11 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    inputMode="numeric"
+                    placeholder="10-digit mobile number"
+                    onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
                     className="w-full mt-1 px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 ) : (
@@ -485,14 +501,17 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Alternative Number (Optional)
+                  Alternative Number (Optional, 10 Digits)
                 </p>
                 {isEditing ? (
                   <input
                     type="tel"
                     value={altPhone}
-                    onChange={(e) => setAltPhone(e.target.value)}
-                    placeholder="Enter secondary number"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    inputMode="numeric"
+                    onChange={(e) => setAltPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                    placeholder="Enter secondary 10-digit number"
                     className="w-full mt-1 px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 ) : (
