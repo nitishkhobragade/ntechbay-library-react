@@ -1,7 +1,11 @@
 /// <reference types="vite/client" />
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import rawFirebaseConfig from '../firebase-applet-config.json';
 
 export const defaultFirebaseConfig = {
@@ -27,12 +31,21 @@ const activeConfig = {
 
 const app = initializeApp(activeConfig);
 
-// Standard Firestore database instance on ntechbay-library
+// Resilient Firestore initialization:
+// - experimentalForceLongPolling: true guarantees connection through preview iframes and corporate proxies
+// - persistentLocalCache with multi-tab manager enables seamless offline caching and instant reads
 const customDbId = import.meta.env.VITE_FIREBASE_DATABASE_ID || rawFirebaseConfig.firestoreDatabaseId;
 
-export const db = customDbId && customDbId !== '(default)'
-  ? getFirestore(app, customDbId)
-  : getFirestore(app);
+export const db = initializeFirestore(
+  app,
+  {
+    experimentalForceLongPolling: true,
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  },
+  customDbId && customDbId !== '(default)' ? customDbId : undefined
+);
 
 export const auth = getAuth(app);
 
@@ -59,8 +72,15 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMessage = error instanceof Error ? error.message : String(error);
+
+  const isPermissionError =
+    errMessage.includes('Missing or insufficient permissions') ||
+    errMessage.includes('permission-denied') ||
+    (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'permission-denied');
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -71,18 +91,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  return new Error(JSON.stringify(errInfo));
-}
 
-// Validate connection to Firestore on boot
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Please check your Firebase configuration or internet connection.');
-    }
+  if (isPermissionError) {
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    return new Error(JSON.stringify(errInfo));
+  } else {
+    console.warn(`Firestore ${operationType} notice on ${path || 'unknown'}:`, errMessage);
+    return error instanceof Error ? error : new Error(errMessage);
   }
 }
-testConnection();
+

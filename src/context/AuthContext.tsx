@@ -24,7 +24,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, UserRole, UserStatus } from '../types';
-import { saveUserLocally } from '../utils/userStore';
+import { saveUserLocally, getLocallyStoredUsers } from '../utils/userStore';
 
 export interface RegisterData {
   firstName: string;
@@ -84,9 +84,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchUserProfile = async (uid: string, fallbackEmail?: string | null): Promise<UserProfile | null> => {
+    const cleanEmail = fallbackEmail?.trim().toLowerCase() || '';
+
+    // Check local cache first for instant fallback
+    let localFoundProfile: UserProfile | null = null;
+    try {
+      const cached =
+        localStorage.getItem(`ntechbay_profile_${uid}`) ||
+        (cleanEmail ? localStorage.getItem(`ntechbay_profile_${cleanEmail}`) : null);
+      if (cached) {
+        localFoundProfile = JSON.parse(cached);
+      }
+    } catch {}
+
+    if (!localFoundProfile) {
+      try {
+        const localUsers = getLocallyStoredUsers();
+        const match = localUsers.find(
+          (u) => u.uid === uid || (cleanEmail && u.email?.toLowerCase() === cleanEmail)
+        );
+        if (match) {
+          localFoundProfile = { ...match, uid };
+        }
+      } catch {}
+    }
+
     try {
       const userRef = doc(db, 'users', uid);
-      const snapshot = await getDoc(userRef);
+      let snapshot;
+      try {
+        snapshot = await getDoc(userRef);
+      } catch (getDocErr: unknown) {
+        const isOffline =
+          getDocErr instanceof Error &&
+          (getDocErr.message.includes('client is offline') ||
+            getDocErr.message.includes('unavailable') ||
+            getDocErr.message.includes('network'));
+
+        if (isOffline) {
+          console.warn('Firestore offline/disconnected during fetchUserProfile, using local profile fallback for:', uid);
+          if (localFoundProfile) {
+            return localFoundProfile;
+          }
+          if (cleanEmail) {
+            const offlineFallback: UserProfile = {
+              uid,
+              firstName: '',
+              lastName: '',
+              email: cleanEmail,
+              phone: '',
+              altPhone: '',
+              dob: '',
+              bio: '',
+              college: '',
+              course: 'B.Tech',
+              branch: '',
+              photoBase64: '',
+              role: isMasterAdminEmail(cleanEmail) ? 'admin' : 'student',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+            };
+            saveUserLocally(offlineFallback);
+            return offlineFallback;
+          }
+          return null;
+        }
+        throw getDocErr;
+      }
 
       if (snapshot.exists()) {
         const data = snapshot.data();
@@ -127,7 +191,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // If document not found by UID, lookup by email (e.g. account created previously or migration)
       if (fallbackEmail) {
-        const cleanEmail = fallbackEmail.trim().toLowerCase();
         try {
           const qEmail = query(collection(db, 'users'), where('email', '==', cleanEmail));
           const snapEmail = await getDocs(qEmail);
@@ -156,26 +219,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
 
             // Link to uid in Firestore
-            await setDoc(userRef, profile, { merge: true });
+            await setDoc(userRef, profile, { merge: true }).catch(() => {});
             try {
               localStorage.setItem(`ntechbay_profile_${uid}`, JSON.stringify(profile));
             } catch {}
             return profile;
           }
         } catch (queryErr) {
-          console.warn('Email lookup query error:', queryErr);
+          console.warn('Email lookup query notice:', queryErr);
         }
 
         // Check local cache
-        try {
-          const cached = localStorage.getItem(`ntechbay_profile_${uid}`) || localStorage.getItem(`ntechbay_profile_${cleanEmail}`);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            const restoredProfile: UserProfile = { ...parsed, uid };
-            await setDoc(userRef, restoredProfile, { merge: true }).catch(() => {});
-            return restoredProfile;
-          }
-        } catch {}
+        if (localFoundProfile) {
+          await setDoc(userRef, localFoundProfile, { merge: true }).catch(() => {});
+          return localFoundProfile;
+        }
 
         // Minimal clean profile without mock/placeholder data
         const minimalProfile: UserProfile = {
@@ -204,9 +262,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return minimalProfile;
       }
 
+      if (localFoundProfile) {
+        return localFoundProfile;
+      }
+
       return null;
     } catch (err) {
-      handleFirestoreError(err, OperationType.GET, `users/${uid}`);
+      const isOffline =
+        err instanceof Error &&
+        (err.message.includes('client is offline') ||
+          err.message.includes('unavailable') ||
+          err.message.includes('network'));
+
+      if (!isOffline) {
+        handleFirestoreError(err, OperationType.GET, `users/${uid}`);
+      } else {
+        console.warn('Network offline during profile fetch:', err);
+      }
+
+      if (localFoundProfile) {
+        return localFoundProfile;
+      }
       return null;
     }
   };
