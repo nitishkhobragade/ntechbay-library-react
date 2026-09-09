@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import {
   User,
   setPersistence,
   browserLocalPersistence,
+  browserSessionPersistence,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -46,6 +47,8 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   isAdmin: boolean;
   loading: boolean;
+  inactivityNotice: boolean;
+  clearInactivityNotice: () => void;
   loginWithEmailOrPhone: (identifier: string, password: string) => Promise<void>;
   registerUser: (data: RegisterData) => Promise<void>;
   sendPasswordReset: (identifier: string) => Promise<string>;
@@ -75,11 +78,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inactivityNotice, setInactivityNotice] = useState(false);
+  const lastInteractionRef = useRef<number>(Date.now());
 
-  // Configure browserLocalPersistence for persistent session across tabs/restarts
+  const clearInactivityNotice = () => setInactivityNotice(false);
+
+  // Set session persistence by default so tab/browser closure ends student session
   useEffect(() => {
-    setPersistence(auth, browserLocalPersistence).catch((err) => {
-      console.warn('Failed to enable browser local persistence:', err);
+    setPersistence(auth, browserSessionPersistence).catch((err) => {
+      console.warn('Persistence initialization:', err);
     });
   }, []);
 
@@ -299,6 +306,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeSnapshot: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        const email = currentUser.email || '';
+        const isMaster = isMasterAdminEmail(email);
+
+        // Cross-tab / Browser Restart / Closed Tab Security for Students:
+        // When a student closes the browser, restarts browser, or opens the website in another tab in the background,
+        // sessionStorage will NOT contain their authorized session token.
+        // In that case, sign them out immediately application-side so they must login again.
+        if (!isMaster) {
+          const activeSessionUid = sessionStorage.getItem('ntechbay_student_session_active');
+          if (activeSessionUid !== currentUser.uid) {
+            try {
+              await signOut(auth);
+            } catch {}
+            setUser(null);
+            setUserProfile(null);
+            sessionStorage.removeItem('ntechbay_student_session_active');
+            sessionStorage.removeItem('ntechbay_student_last_activity');
+            setLoading(false);
+            return;
+          }
+
+          // Check if user was inactive for 10+ minutes (600,000 ms) without touching
+          const lastAct = parseInt(sessionStorage.getItem('ntechbay_student_last_activity') || '0', 10);
+          const globalAct = parseInt(localStorage.getItem('ntechbay_student_last_activity_global') || '0', 10);
+          const latestAct = Math.max(lastAct, globalAct);
+          if (latestAct && (Date.now() - latestAct) >= 10 * 60 * 1000) {
+            try {
+              await signOut(auth);
+            } catch {}
+            setUser(null);
+            setUserProfile(null);
+            sessionStorage.removeItem('ntechbay_student_session_active');
+            sessionStorage.removeItem('ntechbay_student_last_activity');
+            localStorage.removeItem('ntechbay_student_last_activity_global');
+            setInactivityNotice(true);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       setUser(currentUser);
 
       if (unsubscribeSnapshot) {
@@ -382,6 +431,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
   }, []);
+
+  // 10-Minute Touch & Interaction Inactivity Monitor for Students
+  useEffect(() => {
+    // Admins are exempt from the 10-minute touch limit to allow prolonged course editing
+    if (!user || userProfile?.role === 'admin' || isMasterAdminEmail(user.email)) {
+      return;
+    }
+
+    const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes (600,000 ms)
+
+    const registerTouchActivity = () => {
+      const now = Date.now();
+      lastInteractionRef.current = now;
+      try {
+        sessionStorage.setItem('ntechbay_student_last_activity', now.toString());
+        localStorage.setItem('ntechbay_student_last_activity_global', now.toString());
+      } catch {}
+    };
+
+    let lastThrottledTime = 0;
+    const throttledInteractionHandler = () => {
+      const now = Date.now();
+      if (now - lastThrottledTime > 1500) {
+        lastThrottledTime = now;
+        registerTouchActivity();
+      }
+    };
+
+    const interactionEvents: (keyof WindowEventMap)[] = [
+      'touchstart',
+      'touchmove',
+      'touchend',
+      'mousedown',
+      'mousemove',
+      'keydown',
+      'scroll',
+      'pointerdown',
+      'click',
+    ];
+
+    interactionEvents.forEach((ev) => {
+      window.addEventListener(ev, throttledInteractionHandler, { passive: true });
+    });
+
+    const checkInactivity = async () => {
+      const now = Date.now();
+      let sessAct = 0;
+      let globAct = 0;
+      try {
+        sessAct = parseInt(sessionStorage.getItem('ntechbay_student_last_activity') || '0', 10);
+        globAct = parseInt(localStorage.getItem('ntechbay_student_last_activity_global') || '0', 10);
+      } catch {}
+
+      const latest = Math.max(lastInteractionRef.current, sessAct, globAct);
+
+      if (latest > 0 && (now - latest) >= INACTIVITY_TIMEOUT_MS) {
+        try {
+          sessionStorage.removeItem('ntechbay_student_session_active');
+          sessionStorage.removeItem('ntechbay_student_last_activity');
+          localStorage.removeItem('ntechbay_student_last_activity_global');
+          await signOut(auth);
+        } catch {}
+        setUser(null);
+        setUserProfile(null);
+        setInactivityNotice(true);
+      }
+    };
+
+    const intervalId = setInterval(checkInactivity, 4000);
+
+    const onVisibilityOrFocusChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkInactivity();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocusChange);
+    window.addEventListener('focus', onVisibilityOrFocusChange);
+
+    return () => {
+      interactionEvents.forEach((ev) => {
+        window.removeEventListener(ev, throttledInteractionHandler);
+      });
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibilityOrFocusChange);
+      window.removeEventListener('focus', onVisibilityOrFocusChange);
+    };
+  }, [user, userProfile]);
 
   const loginWithEmailOrPhone = async (identifier: string, password: string): Promise<void> => {
     const trimmed = identifier.trim();
@@ -579,6 +716,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserProfile(null);
       throw new Error('Your student account has been suspended by the administrator. Please contact support.');
     }
+
+    // Initialize session and touch activity tracker for student accounts
+    const isMaster = isMasterAdminEmail(cred.user.email);
+    if (!isMaster) {
+      const now = Date.now().toString();
+      sessionStorage.setItem('ntechbay_student_session_active', cred.user.uid);
+      sessionStorage.setItem('ntechbay_student_last_activity', now);
+      localStorage.setItem('ntechbay_student_last_activity_global', now);
+      lastInteractionRef.current = Date.now();
+    } else {
+      await setPersistence(auth, browserLocalPersistence).catch(() => {});
+    }
+
     setUserProfile(profile);
   };
 
@@ -677,6 +827,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveUserLocally(newProfile);
     setUserProfile(newProfile);
 
+    // Initialize session and touch activity tracker for newly registered student
+    if (!isMasterAdminEmail(cleanEmail)) {
+      const now = Date.now().toString();
+      sessionStorage.setItem('ntechbay_student_session_active', uid);
+      sessionStorage.setItem('ntechbay_student_last_activity', now);
+      localStorage.setItem('ntechbay_student_last_activity_global', now);
+      lastInteractionRef.current = Date.now();
+    }
+
     try {
       await setDoc(doc(db, 'users', uid), newProfile);
     } catch (err) {
@@ -762,6 +921,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setUserProfile(null);
     try {
+      sessionStorage.removeItem('ntechbay_student_session_active');
+      sessionStorage.removeItem('ntechbay_student_last_activity');
+      localStorage.removeItem('ntechbay_student_last_activity_global');
       sessionStorage.removeItem('ntechbay_emergency_admin');
       sessionStorage.removeItem('ntechbay_admin_auth');
       sessionStorage.removeItem('ntechbay_unlocked');
@@ -784,6 +946,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userProfile,
         isAdmin,
         loading,
+        inactivityNotice,
+        clearInactivityNotice,
         loginWithEmailOrPhone,
         registerUser,
         sendPasswordReset,

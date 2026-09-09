@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { SimpleRouter, useNavigate, useLocation } from './context/RouterContext';
 import { CourseType, ResourceCategory, NoticeItem } from './types';
 import {
@@ -41,6 +41,7 @@ import {
   Phone,
   LogOut,
   ArrowLeft,
+  Clock,
 } from 'lucide-react';
 
 const RESOURCE_CATEGORIES: ResourceCategory[] = [
@@ -53,7 +54,7 @@ const RESOURCE_CATEGORIES: ResourceCategory[] = [
 ];
 
 function LibraryApp() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout, inactivityNotice, clearInactivityNotice } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -77,6 +78,19 @@ function LibraryApp() {
   // Notices & Promotional Broadcast State
   const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [isPromotionNoticeOpen, setIsPromotionNoticeOpen] = useState<boolean>(false);
+
+  // Automatically open promotional notice modal whenever a student logs in to their account
+  const studentNoticeLoggedUidRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (user && !isAdmin) {
+      if (studentNoticeLoggedUidRef.current !== user.uid) {
+        studentNoticeLoggedUidRef.current = user.uid;
+        setIsPromotionNoticeOpen(true);
+      }
+    } else if (!user) {
+      studentNoticeLoggedUidRef.current = null;
+    }
+  }, [user, isAdmin]);
 
   // Real-time listener for notices from Firestore
   useEffect(() => {
@@ -519,7 +533,10 @@ function LibraryApp() {
           <LoginPage
             onClose={() => setAuthView(null)}
             onSwitchToSignup={() => setAuthView('signup')}
-            onSuccess={() => setAuthView(null)}
+            onSuccess={() => {
+              setAuthView(null);
+              setIsPromotionNoticeOpen(true);
+            }}
           />
         </div>
       )}
@@ -529,8 +546,47 @@ function LibraryApp() {
           <SignupPage
             onClose={() => setAuthView(null)}
             onSwitchToLogin={() => setAuthView('login')}
-            onSuccess={() => setAuthView(null)}
+            onSuccess={() => {
+              setAuthView(null);
+              setIsPromotionNoticeOpen(true);
+            }}
           />
+        </div>
+      )}
+
+      {/* 10-Minute Touch Inactivity Notification Dialog */}
+      {inactivityNotice && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-200 text-center space-y-4 animate-scaleUp">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-xs">
+              <Clock className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Session Timed Out</h3>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                You were automatically logged out because there was no touch or interaction on the website for 10 minutes. Please sign in again to continue accessing your library materials.
+              </p>
+            </div>
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  clearInactivityNotice();
+                  setAuthView('login');
+                }}
+                className="w-full py-3 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+              >
+                Log In Again
+              </button>
+              <button
+                type="button"
+                onClick={clearInactivityNotice}
+                className="w-full py-2 px-4 text-xs font-medium text-slate-500 hover:text-slate-700 cursor-pointer"
+              >
+                Continue as Guest
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -547,7 +603,7 @@ function LibraryApp() {
         onClose={() => setIsPromotionNoticeOpen(false)}
         notices={notices}
         onOpenContact={() => setIsContactOpen(true)}
-        autoCloseDurationMs={4000}
+        autoCloseDurationMs={8000}
       />
 
       {/* Resource & Quick Drive Modals */}

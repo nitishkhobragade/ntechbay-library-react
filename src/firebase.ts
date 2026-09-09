@@ -19,6 +19,9 @@ export const defaultFirebaseConfig = {
   measurementId: "G-CFCBJ62WD3",
 };
 
+const envDbId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
+const isEnvDbIdUrl = typeof envDbId === 'string' && (envDbId.startsWith('http://') || envDbId.startsWith('https://'));
+
 const activeConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || rawFirebaseConfig.apiKey || defaultFirebaseConfig.apiKey,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || rawFirebaseConfig.authDomain || defaultFirebaseConfig.authDomain,
@@ -26,7 +29,10 @@ const activeConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || rawFirebaseConfig.storageBucket || defaultFirebaseConfig.storageBucket,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || rawFirebaseConfig.messagingSenderId || defaultFirebaseConfig.messagingSenderId,
   appId: import.meta.env.VITE_FIREBASE_APP_ID || rawFirebaseConfig.appId || defaultFirebaseConfig.appId,
-  databaseURL: (rawFirebaseConfig as Record<string, string | undefined>).databaseURL || defaultFirebaseConfig.databaseURL,
+  databaseURL:
+    (isEnvDbIdUrl ? envDbId : undefined) ||
+    (rawFirebaseConfig as Record<string, string | undefined>).databaseURL ||
+    defaultFirebaseConfig.databaseURL,
 };
 
 const app = initializeApp(activeConfig);
@@ -34,7 +40,15 @@ const app = initializeApp(activeConfig);
 // Resilient Firestore initialization:
 // - experimentalForceLongPolling: true guarantees connection through preview iframes and corporate proxies
 // - persistentLocalCache with multi-tab manager enables seamless offline caching and instant reads
-const customDbId = import.meta.env.VITE_FIREBASE_DATABASE_ID || rawFirebaseConfig.firestoreDatabaseId;
+// - databaseId MUST be a valid identifier (e.g. '(default)') and NEVER a URL containing '//'
+const candidateDbId = !isEnvDbIdUrl ? (envDbId || rawFirebaseConfig.firestoreDatabaseId) : rawFirebaseConfig.firestoreDatabaseId;
+const isValidCustomDbId =
+  typeof candidateDbId === 'string' &&
+  candidateDbId.trim() !== '' &&
+  candidateDbId !== '(default)' &&
+  !candidateDbId.includes('/') &&
+  !candidateDbId.includes(':') &&
+  !candidateDbId.startsWith('http');
 
 export const db = initializeFirestore(
   app,
@@ -44,7 +58,7 @@ export const db = initializeFirestore(
       tabManager: persistentMultipleTabManager(),
     }),
   },
-  customDbId && customDbId !== '(default)' ? customDbId : undefined
+  isValidCustomDbId ? candidateDbId.trim() : undefined
 );
 
 export const auth = getAuth(app);

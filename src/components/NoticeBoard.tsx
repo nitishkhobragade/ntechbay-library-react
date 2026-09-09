@@ -56,6 +56,15 @@ export const NoticeBoard: React.FC = () => {
     }
   }, []);
 
+  // Auto-advance notice banner every 8 seconds when multiple notices are active
+  useEffect(() => {
+    if (notices.length <= 1 || selectedNotice !== null || isDismissed) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % notices.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [notices.length, selectedNotice, isDismissed]);
+
   if (notices.length === 0 || isDismissed) {
     return null;
   }
