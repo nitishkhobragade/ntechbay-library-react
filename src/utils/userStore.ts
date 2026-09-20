@@ -72,6 +72,25 @@ export function saveUserLocally(user: UserProfile): void {
 }
 
 /**
+ * Permanently removes user profile from local registry and individual storage cache keys
+ */
+export function removeUserLocally(uid: string, email?: string): void {
+  try {
+    localStorage.removeItem(`ntechbay_profile_${uid}`);
+    localStorage.removeItem(`ntechbay_password_override_${uid}`);
+    if (email) {
+      localStorage.removeItem(`ntechbay_profile_${email.toLowerCase()}`);
+      localStorage.removeItem(`ntechbay_password_override_${email.toLowerCase()}`);
+    }
+    const current = getLocallyStoredUsers();
+    const filtered = current.filter(
+      (u) => u.uid !== uid && (email ? u.email?.toLowerCase() !== email.toLowerCase() : true)
+    );
+    localStorage.setItem(USER_REGISTRY_KEY, JSON.stringify(filtered));
+  } catch {}
+}
+
+/**
  * Fetches all users by combining Firestore with local storage cache, guaranteeing users are never 0
  * if they were registered in this browser or in Firestore.
  */

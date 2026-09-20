@@ -27,6 +27,9 @@ export const BRANCH_NAMES: Record<string, string> = {
   CTM: 'Construction Technology & Mgmt (CTM)',
   DCE: 'Digital Communication Engg (DCE)',
   PRODUCTION: 'Production Engineering (PRODUCTION)',
+  Finance: 'Finance',
+  Marketing: 'Marketing',
+  HR: 'Human Resources (HR)',
   COMMON: 'Common for All Branches',
 };
 

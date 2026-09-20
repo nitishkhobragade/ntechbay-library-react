@@ -13,13 +13,14 @@ import {
   CheckCircle2,
   UserPlus,
   HelpCircle,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface LoginPageProps {
   onSwitchToSignup: () => void;
   onClose?: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (authInfo?: { isAdmin?: boolean }) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
@@ -53,8 +54,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setLoading(true);
 
     try {
-      await loginWithEmailOrPhone(identifier, password);
-      if (onSuccess) onSuccess();
+      const authRes = await loginWithEmailOrPhone(identifier, password);
+      if (onSuccess) onSuccess(authRes);
       else if (onClose) onClose();
     } catch (err: any) {
       let msg = err.message || 'Login failed. Please check credentials.';
@@ -131,7 +132,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </p>
         </div>
 
-        {onClose && <div className="w-10" />}
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close sign in form"
+            title="Close"
+            className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        ) : (
+          <div className="w-8" />
+        )}
       </div>
 
       {/* Form Body: Compact vertical padding and tight gaps */}

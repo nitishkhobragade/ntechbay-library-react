@@ -42,9 +42,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Admin route requires role === 'admin' or master admin email
+  // Admin route requires role === 'admin', master admin email, or active admin session token
   if (adminOnly) {
-    if (!isAdmin) {
+    const hasAdminSession =
+      typeof window !== 'undefined' &&
+      (sessionStorage.getItem('ntechbay_admin_auth') === 'true' ||
+        sessionStorage.getItem('ntechbay_emergency_admin') === 'true');
+
+    if (!isAdmin && !hasAdminSession) {
       return <Navigate to="/" replace />;
     }
     return <>{children}</>;

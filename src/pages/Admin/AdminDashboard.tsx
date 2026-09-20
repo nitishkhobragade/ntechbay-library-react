@@ -56,6 +56,8 @@ import { useAuth } from '../../context/AuthContext';
 import { StudentExportModal } from '../../components/StudentExportModal';
 import { AddAdminModal } from '../../components/AddAdminModal';
 import { MasterPasswordOverrideModal } from '../../components/MasterPasswordOverrideModal';
+import { DeleteStudentModal } from '../../components/DeleteStudentModal';
+import { formatDateToDDMMYYYY } from '../../utils/dateFormatter';
 import { compressImageTo50KB } from '../../utils/imageCompressor';
 import {
   fetchAllRegisteredUsers,
@@ -89,6 +91,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
   const [overridePasswordStudent, setOverridePasswordStudent] = useState<UserProfile | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<UserProfile | null>(null);
 
   // Notices State
   const [notices, setNotices] = useState<NoticeItem[]>([]);
@@ -965,15 +968,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => setIsAddAdminModalOpen(true)}
-                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                  title="Create New Administrator Account"
-                >
-                  <UserPlus className="w-3.5 h-3.5 text-slate-950" />
-                  <span>Add New Admin</span>
-                </button>
+                {userSubTab === 'admins' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddAdminModalOpen(true)}
+                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                    title="Create New Administrator Account"
+                  >
+                    <UserPlus className="w-3.5 h-3.5 text-slate-950" />
+                    <span>Add New Admin</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1074,7 +1079,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <td className="py-3 px-4">
                             <p className="font-medium text-slate-800">{userItem.phone}</p>
                             {userItem.dob && (
-                              <p className="text-[11px] text-blue-600 font-medium">DOB: {userItem.dob}</p>
+                              <p className="text-[11px] text-blue-600 font-medium">DOB: {formatDateToDDMMYYYY(userItem.dob)}</p>
                             )}
                             {userItem.altPhone && (
                               <p className="text-[11px] text-slate-400">Alt: {userItem.altPhone}</p>
@@ -1110,8 +1115,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </td>
 
                           {/* Registered date */}
-                          <td className="py-3 px-4 text-slate-500 text-[11px]">
-                            {new Date(userItem.createdAt).toLocaleDateString()}
+                          <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap font-medium">
+                            {formatDateToDDMMYYYY(userItem.createdAt)}
                           </td>
 
                           {/* Actions */}
@@ -1178,6 +1183,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 ) : (
                                   <UserCheck className="w-4 h-4" />
                                 )}
+                              </button>
+
+                              {/* Permanent Student Deletion */}
+                              <button
+                                type="button"
+                                onClick={() => setStudentToDelete(userItem)}
+                                className="p-1.5 hover:bg-rose-100 text-rose-600 rounded-lg cursor-pointer transition-colors"
+                                title="Delete Student Permanently"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -1267,8 +1282,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </td>
 
                           {/* Created date */}
-                          <td className="py-3 px-4 text-slate-500 text-[11px]">
-                            {new Date(adminItem.createdAt).toLocaleDateString()}
+                          <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap font-medium">
+                            {formatDateToDDMMYYYY(adminItem.createdAt)}
                           </td>
 
                           {/* Actions */}
@@ -2050,7 +2065,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-slate-500">Date of Birth (DOB):</span>
-                      <span className="font-semibold text-slate-800">{viewingUser.dob || 'Not specified'}</span>
+                      <span className="font-semibold text-slate-800">
+                        {viewingUser.dob ? formatDateToDDMMYYYY(viewingUser.dob) : 'Not specified'}
+                      </span>
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-slate-500">Alternative Phone:</span>
@@ -2299,6 +2316,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       }
                       className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
                     />
+                    {selectedUserForEdit.dob && (
+                      <p className="text-[10px] text-blue-600 mt-1 font-medium">
+                        Formatted: {formatDateToDDMMYYYY(selectedUserForEdit.dob)} (DD/MM/YYYY)
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -2571,6 +2593,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )
           );
           showToast(`Password successfully updated for ${st.firstName} ${st.lastName}.`, 'success');
+        }}
+      />
+
+      {/* MODAL: PERMANENT STUDENT DELETION WITH ADMIN RE-AUTHENTICATION */}
+      <DeleteStudentModal
+        isOpen={Boolean(studentToDelete)}
+        student={studentToDelete}
+        onClose={() => setStudentToDelete(null)}
+        onSuccess={(deletedId, studentName) => {
+          setUsers((prev) => prev.filter((u) => u.uid !== deletedId));
+          setStudentToDelete(null);
+          showToast(`Student ${studentName} has been permanently deleted from Firebase & local registry.`, 'success');
         }}
       />
     </div>

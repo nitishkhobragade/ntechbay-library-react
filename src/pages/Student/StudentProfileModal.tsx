@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { compressImageTo50to100KB } from '../../utils/imageCompressor';
+import { formatDateToDDMMYYYY } from '../../utils/dateFormatter';
+import { COURSE_BRANCH_MAPPING, normalizeBranchToUppercase } from '../../utils/courseBranches';
 
 interface StudentProfileModalProps {
   isOpen: boolean;
@@ -47,6 +49,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const [college, setCollege] = useState('');
   const [course, setCourse] = useState('B.Tech');
   const [branch, setBranch] = useState('');
+  const [customBranch, setCustomBranch] = useState('');
   const [photoBase64, setPhotoBase64] = useState('');
   const [photoSizeKB, setPhotoSizeKB] = useState<number | null>(null);
   const [compressing, setCompressing] = useState(false);
@@ -74,8 +77,20 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       setDob(userProfile.dob || '');
       setBio(userProfile.bio || '');
       setCollege(userProfile.college || '');
-      setCourse(userProfile.course || 'B.Tech');
-      setBranch(userProfile.branch || '');
+      const currentCourse = userProfile.course || 'B.Tech';
+      setCourse(currentCourse);
+      const branches = COURSE_BRANCH_MAPPING[currentCourse] || [];
+      const userBranch = userProfile.branch || '';
+      if (branches.includes(userBranch)) {
+        setBranch(userBranch);
+        setCustomBranch('');
+      } else if (userBranch) {
+        setBranch('OTHER');
+        setCustomBranch(userBranch);
+      } else {
+        setBranch(branches[0] || '');
+        setCustomBranch('');
+      }
       setPhotoBase64(userProfile.photoBase64 || '');
     }
   }, [userProfile]);
@@ -121,6 +136,9 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     setSaving(true);
     setErrorMsg(null);
     try {
+      const finalBranchRaw = branch === 'OTHER' ? customBranch : branch;
+      const finalBranch = normalizeBranchToUppercase(finalBranchRaw);
+
       await updateUserProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -130,7 +148,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         bio: bio.trim(),
         college: college.trim(),
         course,
-        branch: branch.trim(),
+        branch: finalBranch,
         photoBase64,
       });
       await refreshProfile();
@@ -353,7 +371,13 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
                 {isEditing ? (
                   <select
                     value={course}
-                    onChange={(e) => setCourse(e.target.value)}
+                    onChange={(e) => {
+                      const newCourse = e.target.value;
+                      setCourse(newCourse);
+                      const branches = COURSE_BRANCH_MAPPING[newCourse] || [];
+                      setBranch(branches[0] || 'CIVIL');
+                      setCustomBranch('');
+                    }}
                     className="w-full mt-1 px-2 py-1 text-xs bg-white border border-slate-300 rounded-lg"
                   >
                     <option value="B.Tech">B.Tech</option>
@@ -378,13 +402,29 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
                   Branch / Stream
                 </p>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    placeholder="e.g. Computer Science (CSE)"
-                    className="w-full mt-1 px-2 py-1 text-xs bg-white border border-slate-300 rounded-lg"
-                  />
+                  <div className="space-y-1.5 mt-1">
+                    <select
+                      value={branch}
+                      onChange={(e) => {
+                        setBranch(e.target.value);
+                        if (e.target.value !== 'OTHER') setCustomBranch('');
+                      }}
+                      className="w-full px-2 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      {(COURSE_BRANCH_MAPPING[course] || []).map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                    {branch === 'OTHER' && (
+                      <input
+                        type="text"
+                        value={customBranch}
+                        onChange={(e) => setCustomBranch(e.target.value)}
+                        placeholder="Specify Custom Branch Name (Saved UPPERCASE)"
+                        className="w-full px-2 py-1 text-xs bg-white border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 uppercase"
+                      />
+                    )}
+                  </div>
                 ) : (
                   <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
                     {branch || userProfile?.branch || 'Not specified'}
@@ -455,11 +495,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
                 ) : (
                   <p className="text-xs sm:text-sm font-semibold text-slate-800">
                     {dob || userProfile?.dob
-                      ? new Date(dob || userProfile?.dob || '').toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })
+                      ? formatDateToDDMMYYYY(dob || userProfile?.dob)
                       : 'Not specified'}
                   </p>
                 )}
@@ -533,11 +569,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
                 </p>
                 <p className="text-xs sm:text-sm font-semibold text-slate-800">
                   {userProfile?.createdAt
-                    ? new Date(userProfile.createdAt).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })
+                    ? formatDateToDDMMYYYY(userProfile.createdAt)
                     : 'Active Member'}
                 </p>
               </div>

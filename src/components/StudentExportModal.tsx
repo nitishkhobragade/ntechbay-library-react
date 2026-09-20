@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { UserProfile } from '../types';
+import { formatDateToDDMMYYYY } from '../utils/dateFormatter';
 
 interface StudentExportModalProps {
   isOpen: boolean;
@@ -63,12 +64,12 @@ export const StudentExportModal: React.FC<StudentExportModalProps> = ({
         'Email Address': s.email,
         'Mobile Phone': s.phone,
         'Alternative Phone': s.altPhone || '—',
-        'Date of Birth (DOB)': s.dob || '—',
+        'Date of Birth (DOB)': formatDateToDDMMYYYY(s.dob),
         'College / Institute': s.college || '—',
         'Degree / Course': s.course || 'B.Tech',
         'Branch / Stream': s.branch || '—',
         'Account Status': (s.status || 'active').toUpperCase(),
-        'Registration Date': s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—',
+        'Registration Date': formatDateToDDMMYYYY(s.createdAt),
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(recordsToExport);
@@ -146,9 +147,9 @@ export const StudentExportModal: React.FC<StudentExportModalProps> = ({
         s.phone,
         s.college || '—',
         `${s.course || 'B.Tech'} - ${s.branch || 'General'}`,
-        s.dob || '—',
+        formatDateToDDMMYYYY(s.dob),
         (s.status || 'active').toUpperCase(),
-        s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—',
+        formatDateToDDMMYYYY(s.createdAt),
       ]);
 
       autoTable(doc, {
@@ -399,7 +400,7 @@ export const StudentExportModal: React.FC<StudentExportModalProps> = ({
                             <span className="font-medium text-slate-900">{s.course || 'B.Tech'}</span>
                             {s.branch && <span className="text-[11px] text-slate-500"> • {s.branch}</span>}
                           </td>
-                          <td className="py-2 px-3 text-slate-600 font-mono text-[11px]">{s.dob || '—'}</td>
+                          <td className="py-2 px-3 text-slate-600 font-mono text-[11px]">{formatDateToDDMMYYYY(s.dob)}</td>
                           <td className="py-2 px-3">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
@@ -412,7 +413,7 @@ export const StudentExportModal: React.FC<StudentExportModalProps> = ({
                             </span>
                           </td>
                           <td className="py-2 px-3 text-slate-500 text-[11px]">
-                            {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—'}
+                            {formatDateToDDMMYYYY(s.createdAt)}
                           </td>
                         </tr>
                       ))

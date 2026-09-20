@@ -98,15 +98,15 @@ export const PromotionNoticeModal: React.FC<PromotionNoticeModalProps> = ({
           />
         </div>
 
-        {/* Header with Promotion Tag & Auto-timer status */}
-        <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white p-5 relative shrink-0">
+        {/* Header with Promotion Tag & Auto-timer status - compact vertical spacing on mobile */}
+        <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white px-3.5 py-2.5 sm:px-5 sm:py-4 relative shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-amber-400 text-slate-900 rounded-xl shadow-xs animate-bounce">
-                <Sparkles className="w-4 h-4" />
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="p-1 sm:p-1.5 bg-amber-400 text-slate-900 rounded-lg sm:rounded-xl shadow-xs shrink-0">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </span>
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-white mt-0.5">
+              <div className="min-w-0">
+                <h2 className="text-xs sm:text-base font-bold text-white leading-tight truncate">
                   NTechBay Online Services & Notices
                 </h2>
               </div>
@@ -115,20 +115,20 @@ export const PromotionNoticeModal: React.FC<PromotionNoticeModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+              className="text-white/80 hover:text-white p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               title="Close notice"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
           {/* Countdown & Manual Touch-Safe Pause banner */}
-          <div className="mt-3 flex items-center justify-between text-xs text-blue-100 bg-black/25 px-3 py-2 rounded-xl border border-white/20">
+          <div className="mt-1.5 sm:mt-2.5 flex items-center justify-between text-[11px] sm:text-xs text-blue-100 bg-black/25 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl border border-white/20">
             <div className="flex items-center gap-1.5">
-              <Clock className={`w-3.5 h-3.5 ${isPaused ? 'text-amber-400' : 'text-amber-300 animate-spin'}`} />
+              <Clock className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isPaused ? 'text-amber-400' : 'text-amber-300 animate-spin'}`} />
               <span className="font-medium">
                 {isPaused ? (
-                  <span className="text-amber-200 font-semibold">Timer paused manually</span>
+                  <span className="text-amber-200 font-semibold">Timer paused</span>
                 ) : (
                   <span>
                     auto closing in (<strong className="text-white font-bold">{Math.ceil(timeLeft)}s</strong>)
@@ -140,18 +140,18 @@ export const PromotionNoticeModal: React.FC<PromotionNoticeModalProps> = ({
             <button
               type="button"
               onClick={() => setIsPaused(!isPaused)}
-              className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all cursor-pointer shadow-xs active:scale-95"
+              className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 bg-white/20 hover:bg-white/30 text-white rounded-md sm:rounded-lg transition-all cursor-pointer shadow-xs active:scale-95"
               title={isPaused ? 'Resume auto-close' : 'Pause auto-close timer'}
             >
               {isPaused ? (
                 <>
-                  <Play className="w-3 h-3 text-emerald-300 fill-emerald-300" />
-                  <span>Resume Timer</span>
+                  <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-300 fill-emerald-300" />
+                  <span>Resume</span>
                 </>
               ) : (
                 <>
-                  <Pause className="w-3 h-3 text-amber-300 fill-amber-300" />
-                  <span>Manual Pause</span>
+                  <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-300 fill-amber-300" />
+                  <span>Pause</span>
                 </>
               )}
             </button>
@@ -159,12 +159,12 @@ export const PromotionNoticeModal: React.FC<PromotionNoticeModalProps> = ({
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className="p-3 sm:p-5 overflow-y-auto space-y-3 sm:space-y-4">
           {/* Admin Notice (If posted in Firestore) */}
           {latestNotice ? (
-            <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50/60 border border-amber-200 rounded-2xl shadow-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+            <div className="p-3 sm:p-4 bg-gradient-to-br from-amber-50 to-orange-50/60 border border-amber-200 rounded-xl sm:rounded-2xl shadow-xs">
+              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
                   <Megaphone className="w-3 h-3 text-amber-700" />
                   <span>Admin Broadcast</span>
                 </span>
@@ -172,9 +172,9 @@ export const PromotionNoticeModal: React.FC<PromotionNoticeModalProps> = ({
                   {new Date(latestNotice.createdAt).toLocaleDateString()}
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-slate-900">{latestNotice.title}</h3>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">{latestNotice.title}</h3>
               {latestNotice.imageUrl && (
-                <div className="mt-2 rounded-xl overflow-hidden border border-amber-200 bg-white max-h-48">
+                <div className="mt-2 rounded-lg sm:rounded-xl overflow-hidden border border-amber-200 bg-white max-h-40 sm:max-h-48">
                   <img
                     src={latestNotice.imageUrl}
                     alt="Notice"
@@ -182,14 +182,14 @@ export const PromotionNoticeModal: React.FC<PromotionNoticeModalProps> = ({
                   />
                 </div>
               )}
-              <p className="text-xs text-slate-700 mt-2 leading-relaxed whitespace-pre-line">
+              <p className="text-xs text-slate-700 mt-1.5 sm:mt-2 leading-relaxed whitespace-pre-line">
                 {latestNotice.content}
               </p>
             </div>
           ) : null}
 
           {/* Er. Nitish Khobragade's Online Services Promotion */}
-          <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl">
+          <div className="p-3 sm:p-4 bg-blue-50/80 border border-blue-200 rounded-xl sm:rounded-2xl">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                 NK

@@ -533,9 +533,19 @@ function LibraryApp() {
           <LoginPage
             onClose={() => setAuthView(null)}
             onSwitchToSignup={() => setAuthView('signup')}
-            onSuccess={() => {
+            onSuccess={(authInfo) => {
               setAuthView(null);
-              setIsPromotionNoticeOpen(true);
+              const isAdm = Boolean(
+                authInfo?.isAdmin ||
+                sessionStorage.getItem('ntechbay_admin_auth') === 'true' ||
+                sessionStorage.getItem('ntechbay_emergency_admin') === 'true'
+              );
+              if (isAdm) {
+                setIsPromotionNoticeOpen(false);
+                navigate('/admin', { replace: true });
+              } else {
+                setIsPromotionNoticeOpen(true);
+              }
             }}
           />
         </div>

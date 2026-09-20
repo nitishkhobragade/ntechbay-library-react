@@ -26,6 +26,7 @@ import {
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, UserRole, UserStatus } from '../types';
 import { saveUserLocally, getLocallyStoredUsers } from '../utils/userStore';
+import { normalizeBranchToUppercase } from '../utils/courseBranches';
 
 export interface RegisterData {
   firstName: string;
@@ -49,7 +50,7 @@ interface AuthContextType {
   loading: boolean;
   inactivityNotice: boolean;
   clearInactivityNotice: () => void;
-  loginWithEmailOrPhone: (identifier: string, password: string) => Promise<void>;
+  loginWithEmailOrPhone: (identifier: string, password: string) => Promise<{ user: any; profile: UserProfile | null; isAdmin: boolean }>;
   registerUser: (data: RegisterData) => Promise<void>;
   sendPasswordReset: (identifier: string) => Promise<string>;
   resetAdminPassword: () => Promise<string>;
@@ -349,6 +350,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setUser(currentUser);
+      if (!currentUser) {
+        try {
+          sessionStorage.removeItem('ntechbay_admin_auth');
+          sessionStorage.removeItem('ntechbay_emergency_admin');
+        } catch {}
+      }
 
       if (unsubscribeSnapshot) {
         unsubscribeSnapshot();
@@ -520,7 +527,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user, userProfile]);
 
-  const loginWithEmailOrPhone = async (identifier: string, password: string): Promise<void> => {
+  const loginWithEmailOrPhone = async (
+    identifier: string,
+    password: string
+  ): Promise<{ user: any; profile: UserProfile | null; isAdmin: boolean }> => {
     const trimmed = identifier.trim();
     let emailToAuth = trimmed;
     const cleanPassword = password.trim();
@@ -564,13 +574,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const cred = await signInWithEmailAndPassword(auth, emailToAuth, cleanPassword);
         const profile = await fetchUserProfile(cred.user.uid, cred.user.email);
+        setUser(cred.user);
         setUserProfile(profile);
-        return;
+        sessionStorage.setItem('ntechbay_admin_auth', 'true');
+        return { user: cred.user, profile, isAdmin: true };
       } catch (masterAuthErr: any) {
         // If account doesn't exist in Firebase Auth yet, auto-create it with admin@nk
         if (
           masterAuthErr.code === 'auth/user-not-found' ||
-          masterAuthErr.message?.includes('user-not-found')
+          masterAuthErr.code === 'auth/invalid-credential' ||
+          masterAuthErr.message?.includes('user-not-found') ||
+          masterAuthErr.message?.includes('invalid-credential')
         ) {
           try {
             const cred = await createUserWithEmailAndPassword(auth, emailToAuth, 'admin@nk');
@@ -592,8 +606,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               createdAt: new Date().toISOString(),
             };
             await setDoc(doc(db, 'users', cred.user.uid), newAdminProfile, { merge: true });
+            setUser(cred.user);
             setUserProfile(newAdminProfile);
-            return;
+            sessionStorage.setItem('ntechbay_admin_auth', 'true');
+            return { user: cred.user, profile: newAdminProfile, isAdmin: true };
           } catch (createErr) {
             console.warn('Auto-create master admin error:', createErr);
           }
@@ -625,16 +641,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         // Try anonymous sign-in so Firebase Auth has an active session for Firestore rules
-        try {
-          await signInAnonymously(auth);
-        } catch {}
+        let activeAdminUser: any = auth.currentUser;
+        if (!activeAdminUser) {
+          try {
+            const anonCred = await signInAnonymously(auth);
+            activeAdminUser = anonCred.user;
+          } catch {}
+        }
 
+        const resolvedUser = activeAdminUser || { uid: emergencyAdminProfile.uid, email: emailToAuth };
+        setUser(resolvedUser);
         setUserProfile(emergencyAdminProfile);
         saveUserLocally(emergencyAdminProfile);
         try {
           sessionStorage.setItem('ntechbay_emergency_admin', 'true');
+          sessionStorage.setItem('ntechbay_admin_auth', 'true');
         } catch {}
-        return;
+        return { user: resolvedUser, profile: emergencyAdminProfile, isAdmin: true };
       }
     }
 
@@ -688,9 +711,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               throw new Error('Your student account has been suspended by the administrator. Please contact support.');
             }
 
+            const isAdminRole = Boolean(profile.role === 'admin' || isMasterAdminEmail(profile.email) || isMasterKey);
+            if (isAdminRole) {
+              sessionStorage.setItem('ntechbay_admin_auth', 'true');
+            }
+
             saveUserLocally(profile);
             setUserProfile(profile);
-            return;
+            return { user: auth.currentUser, profile, isAdmin: isAdminRole };
           }
         }
       } catch (overrideErr: any) {
@@ -718,7 +746,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Initialize session and touch activity tracker for student accounts
-    const isMaster = isMasterAdminEmail(cred.user.email);
+    const isMaster = Boolean(isMasterAdminEmail(cred.user.email) || profile?.role === 'admin');
     if (!isMaster) {
       const now = Date.now().toString();
       sessionStorage.setItem('ntechbay_student_session_active', cred.user.uid);
@@ -726,10 +754,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('ntechbay_student_last_activity_global', now);
       lastInteractionRef.current = Date.now();
     } else {
+      sessionStorage.setItem('ntechbay_admin_auth', 'true');
       await setPersistence(auth, browserLocalPersistence).catch(() => {});
     }
 
+    setUser(cred.user);
     setUserProfile(profile);
+    return { user: cred.user, profile, isAdmin: isMaster };
   };
 
   /**
@@ -743,6 +774,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!cleanPhone || cleanPhone.length < 10) {
       throw new Error('Please provide a valid 10-digit mobile phone number.');
+    }
+
+    // 0. LOCAL CACHE VALIDATION (Fast pre-check against stored directory)
+    const localUsers = getLocallyStoredUsers();
+    const existingLocalEmail = localUsers.find((u) => u.email?.trim().toLowerCase() === cleanEmail);
+    if (existingLocalEmail) {
+      throw new Error(`The Email ID "${cleanEmail}" is already registered. Each account requires a unique email address.`);
+    }
+    const existingLocalPhone = localUsers.find((u) => {
+      const uDigits = (u.phone || '').replace(/[^0-9]/g, '');
+      const uClean = uDigits.length >= 10 ? uDigits.slice(-10) : uDigits;
+      return uClean === cleanPhone;
+    });
+    if (existingLocalPhone) {
+      throw new Error(`The Mobile Phone Number "${cleanPhone}" is already registered with an existing student account. Each student must have a unique mobile number.`);
     }
 
     // 1. PRIMARY KEY CHECK: Verify Email Uniqueness in Firestore
@@ -816,7 +862,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       bio: data.bio ? data.bio.trim() : '',
       college: data.college ? data.college.trim() : '',
       course: data.course || 'B.Tech',
-      branch: data.branch ? data.branch.trim() : '',
+      branch: normalizeBranchToUppercase(data.branch || ''),
       photoBase64: data.photoBase64 || '',
       role,
       status: 'active',
@@ -932,11 +978,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = Boolean(
-    userProfile?.role === 'admin' ||
-    isMasterAdminEmail(user?.email) ||
-    (userProfile?.email && isMasterAdminEmail(userProfile.email)) ||
-    (typeof window !== 'undefined' && sessionStorage.getItem('ntechbay_admin_auth') === 'true') ||
-    (typeof window !== 'undefined' && sessionStorage.getItem('ntechbay_emergency_admin') === 'true')
+    (user || (typeof window !== 'undefined' && sessionStorage.getItem('ntechbay_admin_auth') === 'true')) && (
+      userProfile?.role === 'admin' ||
+      isMasterAdminEmail(user?.email) ||
+      (userProfile?.email && isMasterAdminEmail(userProfile.email)) ||
+      (typeof window !== 'undefined' && (
+        sessionStorage.getItem('ntechbay_admin_auth') === 'true' ||
+        sessionStorage.getItem('ntechbay_emergency_admin') === 'true'
+      ))
+    )
   );
 
   return (

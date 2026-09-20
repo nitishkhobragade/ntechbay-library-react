@@ -103,17 +103,6 @@ export const StudentHomePortal: React.FC<StudentHomePortalProps> = ({
                 </h2>
               </div>
             </div>
-
-            {/* Direct Logout on Homepage Welcome Header */}
-            <button
-              type="button"
-              onClick={logout}
-              className="px-2.5 py-1 rounded-lg bg-rose-500/80 hover:bg-rose-600 text-white font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer border border-rose-300/40 shadow-2xs"
-              title="Sign Out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Sign Out</span>
-            </button>
           </div>
 
           {/* Body with Student Info & Primary Actions */}

@@ -15,9 +15,13 @@ import {
   GraduationCap,
   Building2,
   Calendar,
+  BookOpen,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { compressImageTo50to100KB } from '../../utils/imageCompressor';
+import { COURSE_BRANCH_MAPPING, normalizeBranchToUppercase } from '../../utils/courseBranches';
+import { formatDateToDDMMYYYY } from '../../utils/dateFormatter';
 
 interface SignupPageProps {
   onSwitchToLogin: () => void;
@@ -44,9 +48,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({
     confirmPassword: '',
     college: '',
     course: 'B.Tech',
-    branch: 'Computer Science & Engineering (CSE)',
+    branch: (COURSE_BRANCH_MAPPING['B.Tech'] && COURSE_BRANCH_MAPPING['B.Tech'][0]) || 'CIVIL',
     bio: '',
   });
+
+  const [customBranch, setCustomBranch] = useState<string>('');
+  const [duplicateField, setDuplicateField] = useState<'email' | 'phone' | null>(null);
 
   const [photoBase64, setPhotoBase64] = useState<string>('');
   const [photoSizeKB, setPhotoSizeKB] = useState<number | null>(null);
@@ -88,9 +95,41 @@ export const SignupPage: React.FC<SignupPageProps> = ({
     // Limit phone and altPhone strictly to numeric digits only and maximum 10 characters
     if (name === 'phone' || name === 'altPhone') {
       const cleanDigits = value.replace(/[^0-9]/g, '').slice(0, 10);
+      if (name === 'phone' && duplicateField === 'phone') {
+        setDuplicateField(null);
+        setError(null);
+      }
       setFormData((prev) => ({
         ...prev,
         [name]: cleanDigits,
+      }));
+      return;
+    }
+
+    if (name === 'email' && duplicateField === 'email') {
+      setDuplicateField(null);
+      setError(null);
+    }
+
+    if (name === 'course') {
+      const branches = COURSE_BRANCH_MAPPING[value] || [];
+      const firstBranch = branches[0] || 'CIVIL';
+      setFormData((prev) => ({
+        ...prev,
+        course: value,
+        branch: firstBranch,
+      }));
+      setCustomBranch('');
+      return;
+    }
+
+    if (name === 'branch') {
+      if (value !== 'OTHER') {
+        setCustomBranch('');
+      }
+      setFormData((prev) => ({
+        ...prev,
+        branch: value,
       }));
       return;
     }
@@ -176,6 +215,14 @@ export const SignupPage: React.FC<SignupPageProps> = ({
       return;
     }
 
+    if (formData.branch === 'OTHER' && !customBranch.trim()) {
+      setError('Please specify your custom branch name (* Mandatory when OTHER is selected).');
+      return;
+    }
+
+    const finalBranchRaw = formData.branch === 'OTHER' ? customBranch : formData.branch;
+    const finalBranch = normalizeBranchToUppercase(finalBranchRaw);
+
     setLoading(true);
 
     try {
@@ -190,7 +237,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
         photoBase64,
         college: formData.college.trim(),
         course: formData.course,
-        branch: formData.branch,
+        branch: finalBranch,
         bio: formData.bio.trim(),
       });
 
@@ -198,9 +245,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({
       else if (onClose) onClose();
     } catch (err: any) {
       let msg = err.message || 'Registration failed.';
-      if (msg.includes('auth/email-already-in-use') || msg.includes('Email ID is already registered')) {
+      const lower = msg.toLowerCase();
+      if (lower.includes('email') && (lower.includes('already') || lower.includes('in-use') || lower.includes('registered'))) {
+        setDuplicateField('email');
         msg = 'This Email ID is already registered. One account per email is allowed.';
-      } else if (msg.includes('Mobile Phone number is already registered') || msg.includes('phone')) {
+      } else if ((lower.includes('phone') || lower.includes('mobile')) && (lower.includes('already') || lower.includes('registered'))) {
+        setDuplicateField('phone');
         msg = 'This Mobile Phone number is already registered. One account per mobile number is allowed.';
       }
       setError(msg);
@@ -236,15 +286,38 @@ export const SignupPage: React.FC<SignupPageProps> = ({
           </p>
         </div>
 
-        {onClose && <div className="w-10" />}
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close registration form"
+            title="Close"
+            className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        ) : (
+          <div className="w-8" />
+        )}
       </div>
 
       {/* Form Content: Reduced vertical padding, margins and gaps for mobile/tablet */}
       <div className="p-2.5 sm:p-3.5 max-h-[75vh] sm:max-h-[78vh] overflow-y-auto">
         {error && (
-          <div className="mb-2 p-2 bg-rose-50/95 border border-rose-200 rounded-lg text-rose-800 text-[11px] flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-            <span className="font-medium leading-tight">{error}</span>
+          <div className="mb-2 p-2.5 bg-rose-50/95 border border-rose-200 rounded-xl text-rose-800 text-[11px] flex flex-col gap-1.5 shadow-2xs">
+            <div className="flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-tight">{error}</span>
+            </div>
+            {duplicateField && (
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="self-start px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+              >
+                <span>Already registered? Click here to Log In</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -365,7 +438,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                 placeholder="student@rgpv.ac.in"
                 required
                 className={`w-full pl-8.5 pr-2 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 transition-all ${
-                  !isEmailEmpty && !isEmailValid
+                  duplicateField === 'email'
+                    ? 'border-rose-500 ring-2 ring-rose-300 bg-rose-50/40 text-rose-950 font-semibold'
+                    : !isEmailEmpty && !isEmailValid
                     ? 'border-rose-400 ring-1 ring-rose-200 bg-rose-50/20'
                     : !isEmailEmpty && isEmailValid
                     ? 'border-emerald-500 ring-1 ring-emerald-200'
@@ -435,7 +510,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                     setFormData((prev) => ({ ...prev, phone: newVal }));
                   }}
                   className={`w-full pl-8.5 pr-2 py-1.5 bg-white/75 border rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all ${
-                    formData.phone.length === 10
+                    duplicateField === 'phone'
+                      ? 'border-rose-500 ring-2 ring-rose-300 bg-rose-50/40 text-rose-950 font-semibold'
+                      : formData.phone.length === 10
                       ? 'border-emerald-500'
                       : formData.phone.length > 0
                       ? 'border-amber-400'
@@ -504,7 +581,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
             </div>
           </div>
 
-          {/* Date of Birth & Course: Side-by-side 2 cols */}
+          {/* Date of Birth & College Name: Side-by-side 2 cols */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <div className="flex items-center justify-between mb-0.5">
@@ -538,11 +615,36 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                   }`}
                 />
               </div>
+              {formData.dob && (
+                <span className="text-[9px] text-blue-700 font-semibold mt-0.5 block truncate">
+                  {formatDateToDDMMYYYY(formData.dob)} (DD/MM/YYYY)
+                </span>
+              )}
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Course
+                College / Institute
+              </label>
+              <div className="relative">
+                <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  name="college"
+                  value={formData.college}
+                  onChange={handleInputChange}
+                  placeholder="e.g. UIT RGPV Bhopal"
+                  className="w-full pl-7 pr-2 py-1.5 bg-white/85 border border-slate-300 rounded-lg text-xs text-slate-800 font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Academic Details: Dependent Course & Branch Selection */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+                Enrolled Course <span className="text-rose-500">*</span>
               </label>
               <select
                 name="course"
@@ -556,41 +658,40 @@ export const SignupPage: React.FC<SignupPageProps> = ({
                 <option value="MBA">MBA</option>
               </select>
             </div>
-          </div>
-
-          {/* Academic Details: College & Branch Side-by-Side */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                College Name
-              </label>
-              <div className="relative">
-                <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  name="college"
-                  value={formData.college}
-                  onChange={handleInputChange}
-                  placeholder="RGPV Bhopal"
-                  className="w-full pl-7 pr-2 py-1.5 bg-white/85 border border-slate-300 rounded-lg text-xs text-slate-800 font-medium focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                Branch / Dept
+                Branch / Stream <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 name="branch"
                 value={formData.branch}
                 onChange={handleInputChange}
-                placeholder="CSE / IT / ME"
-                className="w-full px-2.5 py-1.5 bg-white/85 border border-slate-300 rounded-lg text-xs text-slate-800 font-medium focus:ring-2 focus:ring-blue-500"
-              />
+                className="w-full px-2 py-1.5 bg-white/85 border border-slate-300 rounded-lg text-xs text-slate-800 font-medium focus:ring-2 focus:ring-blue-500"
+              >
+                {(COURSE_BRANCH_MAPPING[formData.course] || []).map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {/* Custom Branch input when "OTHER" is selected */}
+          {formData.branch === 'OTHER' && (
+            <div className="p-2 bg-indigo-50/75 border border-indigo-200 rounded-xl animate-fadeIn">
+              <label className="block text-[11px] font-bold text-indigo-900 mb-0.5">
+                Specify Custom Branch Name <span className="text-rose-500">* (Saved UPPERCASE)</span>
+              </label>
+              <input
+                type="text"
+                value={customBranch}
+                onChange={(e) => setCustomBranch(e.target.value)}
+                placeholder="Specify Custom Branch Name (e.g. MECHATRONICS)"
+                required
+                className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-indigo-950 uppercase placeholder:normal-case focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          )}
 
           {/* Student Bio */}
           <div>

@@ -128,7 +128,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         )}
 
-        {/* Mobile Right: Admin + Mobile Logout + Hamburger Menu */}
+        {/* Mobile Right: Admin + Hamburger Menu */}
         <div className="flex items-center gap-1.5 md:hidden">
           {showAdminButton && onOpenAdmin && (
             <button
@@ -140,24 +140,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label="Admin Panel"
             >
               <ShieldCheck className="w-4 h-4 text-amber-300" />
-            </button>
-          )}
-
-          {/* Direct Quick Logout Button on Mobile Header when logged in */}
-          {user && (
-            <button
-              id="mobile-logout-header-btn"
-              type="button"
-              onClick={async () => {
-                await logout();
-                if (onGoHome) onGoHome();
-              }}
-              className="p-1.5 sm:p-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white transition-all cursor-pointer border border-rose-400/40 shadow-xs flex items-center justify-center gap-1"
-              title="Sign Out of Account"
-              aria-label="Sign Out"
-            >
-              <LogOut className="w-4 h-4 text-white" />
-              <span className="text-[11px] font-bold hidden xs:inline">Exit</span>
             </button>
           )}
 
