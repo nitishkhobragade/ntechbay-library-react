@@ -98,6 +98,31 @@
         }
       },
       "required": ["title", "content", "type", "active"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Academic course degree catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "duration": { "type": "string" },
+        "branches": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Resource": {
+      "title": "Resource",
+      "description": "Digital academic library study material and cloud link",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "course": { "type": "string" },
+        "semester": { "type": "string" },
+        "branch": { "type": "string" },
+        "category": { "type": "string" },
+        "encodedLink": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -112,6 +137,18 @@
         "$ref": "#/entities/Notice"
       },
       "description": "Announcements and promotional feed entries"
+    },
+    "/courses/{courseId}": {
+      "schema": {
+        "$ref": "#/entities/Course"
+      },
+      "description": "Catalog of courses"
+    },
+    "/resources/{resourceId}": {
+      "schema": {
+        "$ref": "#/entities/Resource"
+      },
+      "description": "Academic learning study materials"
     }
   }
 }

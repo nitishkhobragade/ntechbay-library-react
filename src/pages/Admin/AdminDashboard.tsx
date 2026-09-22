@@ -39,6 +39,7 @@ import {
   Calendar,
   Clock,
   SlidersHorizontal,
+  Database,
 } from 'lucide-react';
 import {
   collection,
@@ -57,6 +58,7 @@ import { StudentExportModal } from '../../components/StudentExportModal';
 import { AddAdminModal } from '../../components/AddAdminModal';
 import { MasterPasswordOverrideModal } from '../../components/MasterPasswordOverrideModal';
 import { DeleteStudentModal } from '../../components/DeleteStudentModal';
+import { AdminBackupRestore } from '../../components/AdminBackupRestore';
 import { formatDateToDDMMYYYY } from '../../utils/dateFormatter';
 import { compressImageTo50KB } from '../../utils/imageCompressor';
 import {
@@ -78,7 +80,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const { isAdmin, userProfile, logout } = useAuth();
   const [isAdminNavOpen, setIsAdminNavOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'users' | 'notices'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'users' | 'notices' | 'backup'>('metrics');
 
   // Users State - initialize immediately from local storage so registered users are never 0
   const [users, setUsers] = useState<UserProfile[]>(() => getLocallyStoredUsers());
@@ -154,7 +156,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setOverridePasswordStudent(null);
       return;
     }
-    if (activeTab === 'users' || activeTab === 'notices') {
+    if (activeTab === 'users' || activeTab === 'notices' || activeTab === 'backup') {
       setActiveTab('metrics');
       return;
     }
@@ -165,6 +167,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (viewingUser || selectedUserForEdit || overridePasswordStudent) return 'Back to Users';
     if (activeTab === 'users') return 'Back to Overview';
     if (activeTab === 'notices') return 'Back to Overview';
+    if (activeTab === 'backup') return 'Back to Overview';
     return 'Back';
   };
 
@@ -600,7 +603,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     ? userSubTab === 'students'
                       ? 'Student Directory'
                       : 'Administrators'
-                    : 'Broadcast Feed & Promotions'}
+                    : activeTab === 'notices'
+                    ? 'Broadcast Feed & Promotions'
+                    : 'Database Backup & Smart Restore'}
                 </span>
               </div>
               <h1 className="text-sm sm:text-base font-bold flex items-center gap-1.5 truncate text-white">
@@ -684,6 +689,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Bell className="w-3.5 h-3.5" />
             <span>Notices & Promotions ({notices.length})</span>
           </button>
+
+          <button
+            type="button"
+            id="admin-nav-backup-tab"
+            onClick={() => setActiveTab('backup')}
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'backup'
+                ? 'border-emerald-400 text-emerald-400'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>Backup & Restore</span>
+          </button>
         </div>
       </header>
 
@@ -761,6 +780,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               >
                 <Bell className="w-4 h-4 text-purple-400" />
                 <span>Notice/Promotion Manager ({notices.length})</span>
+              </button>
+
+              <button
+                type="button"
+                id="admin-drawer-backup-tab"
+                onClick={() => {
+                  setActiveTab('backup');
+                  setIsAdminNavOpen(false);
+                }}
+                className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-colors ${
+                  activeTab === 'backup'
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                    : 'text-slate-300 hover:bg-white/5'
+                }`}
+              >
+                <Database className="w-4 h-4 text-emerald-400" />
+                <span>Backup & Restore</span>
               </button>
 
               {onOpenResourceLinkEditor && (
@@ -1838,6 +1874,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 4: DATABASE BACKUP & SMART RESTORE */}
+        {activeTab === 'backup' && (
+          <div className="space-y-6 animate-fadeIn">
+            <AdminBackupRestore
+              onRefreshUsers={fetchAllUsers}
+              showToast={showToast}
+            />
           </div>
         )}
       </main>

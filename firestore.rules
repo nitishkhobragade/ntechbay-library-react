@@ -43,5 +43,17 @@ service cloud.firestore {
       // Only admins can create, update, or delete notices
       allow create, update, delete: if isAdmin();
     }
+
+    // Courses Collection
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Resources Collection
+    match /resources/{resourceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

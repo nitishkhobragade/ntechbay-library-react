@@ -150,9 +150,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       {/* Form Body: Compact vertical padding and tight gaps */}
       <div className="p-3 sm:p-3.5 space-y-2">
         {error && (
-          <div className="p-2 bg-rose-50/95 border border-rose-200 rounded-lg text-rose-800 text-[11px] flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-            <span className="font-medium leading-tight">{error}</span>
+          <div className="p-2.5 bg-rose-50/95 border border-rose-200 rounded-lg text-rose-800 text-[11px] flex flex-col gap-1.5 shadow-2xs">
+            <div className="flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+              <span className="font-medium leading-tight">{error}</span>
+            </div>
+            {(error.includes('initial password activation') || error.includes('Forgot Password')) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('forgot');
+                  setError(null);
+                }}
+                className="self-start text-[11px] font-bold text-blue-700 hover:text-blue-800 underline flex items-center gap-1 cursor-pointer mt-0.5"
+              >
+                <KeyRound className="w-3 h-3" />
+                <span>Go to Password Reset Form Now →</span>
+              </button>
+            )}
           </div>
         )}
 

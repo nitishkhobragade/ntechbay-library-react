@@ -727,6 +727,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      // Check if user exists in Firestore with authProvisioned: false (imported student profile)
+      try {
+        const usersRef = collection(db, 'users');
+        const qEmail = query(usersRef, where('email', '==', emailToAuth.toLowerCase()));
+        const snap = await getDocs(qEmail);
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          if (docData.authProvisioned === false) {
+            throw new Error(
+              'Your student account was imported from database backup and requires initial password activation. Please click "Forgot Password?" below to set your password securely.'
+            );
+          }
+        }
+      } catch (checkErr: any) {
+        if (checkErr.message?.includes('initial password activation')) {
+          throw checkErr;
+        }
+      }
+
       // Re-throw standard authentication error if override did not match
       if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
         throw new Error('Incorrect password. Please verify your credentials or contact administrator.');
@@ -929,32 +948,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Password reset: sends official reset email to user, NEVER adds or creates documents in the database
+   * Password reset: sends official reset email to user, supports imported student account provisioning
    */
   const sendPasswordReset = async (identifier: string): Promise<string> => {
     const trimmed = identifier.trim();
     let emailToReset = trimmed;
+    let foundDocSnap: any = null;
 
     // If identifier is not an email, lookup user by phone number
     if (!trimmed.includes('@')) {
       const cleanPhone = trimmed.replace(/[^0-9+]/g, '');
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('phone', '==', cleanPhone));
-      const querySnap = await getDocs(q);
+      let querySnap = await getDocs(q);
 
       if (querySnap.empty) {
         const qRaw = query(usersRef, where('phone', '==', trimmed));
-        const querySnapRaw = await getDocs(qRaw);
-        if (querySnapRaw.empty) {
-          throw new Error('No registered account found with this phone number.');
-        }
-        emailToReset = querySnapRaw.docs[0].data().email;
-      } else {
-        emailToReset = querySnap.docs[0].data().email;
+        querySnap = await getDocs(qRaw);
+      }
+      if (querySnap.empty) {
+        throw new Error('No registered account found with this phone number.');
+      }
+      foundDocSnap = querySnap.docs[0];
+      emailToReset = foundDocSnap.data().email;
+    } else {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', trimmed.toLowerCase()));
+      const querySnap = await getDocs(q);
+      if (!querySnap.empty) {
+        foundDocSnap = querySnap.docs[0];
       }
     }
 
-    await sendPasswordResetEmail(auth, emailToReset);
+    try {
+      await sendPasswordResetEmail(auth, emailToReset);
+    } catch (resetErr: any) {
+      // If user account does not exist in Firebase Auth yet (imported student with authProvisioned: false)
+      if (resetErr.code === 'auth/user-not-found' && foundDocSnap) {
+        const docData = foundDocSnap.data();
+        if (docData.authProvisioned === false) {
+          // Provision Auth user with a random temporary password
+          const tempPass = `Nk_${Math.random().toString(36).slice(2, 10)}_$${Date.now()}`;
+          const newAuthUser = await createUserWithEmailAndPassword(auth, emailToReset, tempPass);
+          // Mark authProvisioned: true in Firestore
+          await updateDoc(doc(db, 'users', foundDocSnap.id), {
+            authProvisioned: true,
+            authUid: newAuthUser.user.uid,
+          });
+          // Now send the official password reset email to their inbox
+          await sendPasswordResetEmail(auth, emailToReset);
+          return emailToReset;
+        }
+      }
+      throw resetErr;
+    }
+
     return emailToReset;
   };
 

@@ -14,6 +14,7 @@ import { FilterSection } from './components/FilterSection';
 import { ResourceCard } from './components/ResourceCard';
 import { ResourceModal } from './components/ResourceModal';
 import { ContactModal } from './components/ContactModal';
+import { NitishChatbot } from './components/NitishChatbot';
 import { QuickDriveModal } from './components/QuickDriveModal';
 import { AdminPanelModal } from './components/AdminPanelModal';
 import { NoticeBoard } from './components/NoticeBoard';
@@ -652,6 +653,9 @@ function LibraryApp() {
         isOpen={isContactOpen}
         onClose={() => setIsContactOpen(false)}
       />
+
+      {/* Interactive AI Mentor Chatbot Widget */}
+      <NitishChatbot onOpenContact={() => setIsContactOpen(true)} />
     </div>
   );
 }

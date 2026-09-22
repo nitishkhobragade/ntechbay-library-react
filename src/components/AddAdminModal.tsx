@@ -10,13 +10,15 @@ import { saveUserLocally } from '../utils/userStore';
 interface AddAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdminAdded: (newAdmin: UserProfile) => void;
+  onAdminAdded?: (newAdmin: UserProfile) => void;
+  onAdminCreated?: (newAdmin: UserProfile) => void;
 }
 
 export const AddAdminModal: React.FC<AddAdminModalProps> = ({
   isOpen,
   onClose,
   onAdminAdded,
+  onAdminCreated,
 }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -101,7 +103,8 @@ export const AddAdminModal: React.FC<AddAdminModalProps> = ({
       saveUserLocally(newAdminProfile);
 
       setSuccessMessage(`Administrator account for "${cleanFirst} ${cleanLast}" (${cleanEmail}) created successfully.`);
-      onAdminAdded(newAdminProfile);
+      onAdminAdded?.(newAdminProfile);
+      onAdminCreated?.(newAdminProfile);
 
       // Reset form
       setFirstName('');
