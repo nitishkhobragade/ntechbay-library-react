@@ -9,6 +9,8 @@ import {
   Maximize2,
   ExternalLink,
   MessageCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { sendChatMessage, ChatMessage } from '../services/geminiChatService';
@@ -31,11 +33,16 @@ const SUGGESTION_CHIPS = [
 
 interface NitishChatbotProps {
   onOpenContact?: () => void;
+  isFormOrModalOpen?: boolean;
 }
 
-export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) => {
+export const NitishChatbot: React.FC<NitishChatbotProps> = ({
+  onOpenContact,
+  isFormOrModalOpen = false,
+}) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [isTucked, setIsTucked] = useState<boolean>(false);
   const [avatarLoadError, setAvatarLoadError] = useState<boolean>(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
@@ -52,6 +59,37 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-tuck whenever any form/modal is opened
+  useEffect(() => {
+    if (isFormOrModalOpen) {
+      setIsTucked(true);
+      setIsOpen(false);
+      setIsMinimized(false);
+    } else {
+      setIsTucked(false);
+    }
+  }, [isFormOrModalOpen]);
+
+  // Also auto-detect any modal backdrop or dialog added to the DOM dynamically
+  useEffect(() => {
+    const checkForOverlays = () => {
+      const activeBackdrops = document.querySelectorAll(
+        '.fixed.inset-0:not([data-nitish-chat])'
+      );
+      if (activeBackdrops.length > 0) {
+        setIsTucked(true);
+        setIsOpen(false);
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      checkForOverlays();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   // Auto-scroll to bottom of chat
   const scrollToBottom = () => {
@@ -152,75 +190,131 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
     <aside
       aria-label="Er. Nitish AI Mentor Assistant"
       className="select-none pointer-events-auto"
+      data-nitish-chat="true"
     >
-      {/* 1. FLOATING TRIGGER: ONLY ROUND CIRCLE + 'SAY HI!' BADGE IN HIGHLIGHT COLORS */}
-      {!isOpen && (
+      {/* 1. TUCKED IN STATE: ULTRA-SLIM GLASS RIGHT ARROW TAB FLUSH ON LEFT WALL */}
+      {isTucked && !isOpen && (
         <div
-          id="er-nitish-ai-trigger-container"
-          className="fixed left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center group cursor-pointer"
+          id="er-nitish-ai-tucked-tab"
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 animate-fadeIn select-none pointer-events-auto"
         >
-          {/* Highlight Badge on Top: 'Say Hi! 👋' with radiant gradient & bounce */}
-          <div
-            onClick={() => {
-              setIsOpen(true);
-              setIsMinimized(false);
-            }}
-            className="mb-1.5 animate-bounce flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-white text-[11px] sm:text-xs font-black shadow-lg shadow-orange-500/30 border border-white/80 transition-transform active:scale-95 select-none"
-            title="Click to Say Hi to Er. Nitish!"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping shrink-0" />
-            <span className="tracking-wide drop-shadow-xs">Say Hi! 👋</span>
-          </div>
-
-          {/* Pure Round Circle Avatar Button */}
           <button
             type="button"
-            id="er-nitish-ai-chat-trigger"
+            id="er-nitish-ai-expand-trigger"
             onClick={() => {
-              setIsOpen(true);
-              setIsMinimized(false);
+              setIsTucked(false);
             }}
-            className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full p-0.5 bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 shadow-xl shadow-blue-600/30 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-white cursor-pointer flex items-center justify-center"
-            title="Er. Nitish (AI Mentor) - Click to chat"
-            aria-label="Chat with Er. Nitish"
+            className="group flex items-center justify-center w-4.5 sm:w-5 h-7 sm:h-7.5 rounded-r-md bg-slate-900/30 hover:bg-slate-900/60 backdrop-blur-[2px] text-amber-300 hover:text-amber-200 border-y border-r border-white/25 shadow-2xs hover:w-5.5 active:scale-95 transition-all duration-150 cursor-pointer"
+            title="Er. Nitish (AI Mentor) - Click to expand"
+            aria-label="Expand Er. Nitish AI Mentor"
           >
-            {/* Subtle glowing animated ring */}
-            <span className="absolute -inset-1 rounded-full bg-blue-400/30 blur-xs animate-pulse -z-10" />
-
-            {/* Inner avatar circular wrapper */}
-            <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5 shadow-inner">
-              {renderAvatar('w-full h-full')}
-            </div>
-
-            {/* Online Green Pulse Indicator */}
-            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-xs flex items-center justify-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            </span>
+            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform drop-shadow-xs" />
+            <span className="sr-only">Bring back Er. Nitish Chatbot</span>
           </button>
         </div>
       )}
 
-      {/* 2. MINIMIZED STATE: COMPACT ROUND CIRCLE WITH EXPAND & CLOSE BADGE */}
+      {/* 2. EXPANDED / VISIBLE STATE: LEFT ARROW BUTTON + SAY HI BADGE + ROUND CIRCLE */}
+      {!isTucked && !isOpen && (
+        <div
+          id="er-nitish-ai-trigger-container"
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 flex items-center animate-fadeIn select-none pointer-events-auto"
+        >
+          {/* Left Arrow Button: Click to tuck/minimise entire option into left wall */}
+          <button
+            type="button"
+            id="er-nitish-ai-tuck-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsTucked(true);
+            }}
+            className="group flex items-center justify-center w-4.5 sm:w-5 h-7 sm:h-7.5 rounded-r-md bg-slate-900/30 hover:bg-slate-900/60 backdrop-blur-[2px] text-amber-300 hover:text-amber-200 border-y border-r border-white/25 shadow-2xs transition-all cursor-pointer shrink-0"
+            title="Minimise to left wall (Hide chatbot)"
+            aria-label="Minimise to left wall"
+          >
+            <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+
+          {/* Say Hi Badge & Round Avatar Circle */}
+          <div className="flex flex-col items-center ml-1 sm:ml-1.5">
+            {/* Highlight Badge on Top: 'Say Hi! 👋' with subtle transparency & compact size */}
+            <div
+              onClick={() => {
+                setIsOpen(true);
+                setIsMinimized(false);
+              }}
+              className="mb-1 animate-bounce flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500/70 via-orange-500/70 to-rose-500/70 backdrop-blur-[2px] text-white text-[10px] font-bold shadow-xs border border-white/40 transition-transform active:scale-95 select-none cursor-pointer"
+              title="Click to Say Hi to Er. Nitish!"
+            >
+              <span className="w-1 h-1 rounded-full bg-white animate-ping shrink-0" />
+              <span className="tracking-wide">Say Hi! 👋</span>
+            </div>
+
+            {/* Pure Round Circle Avatar Button with subtle transparency */}
+            <button
+              type="button"
+              id="er-nitish-ai-chat-trigger"
+              onClick={() => {
+                setIsOpen(true);
+                setIsMinimized(false);
+              }}
+              className="relative w-12 h-12 sm:w-13 sm:h-13 rounded-full p-0.5 bg-gradient-to-tr from-blue-600/75 via-indigo-600/75 to-violet-600/75 backdrop-blur-[2px] opacity-90 hover:opacity-100 shadow-lg shadow-blue-900/20 hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-white/70 cursor-pointer flex items-center justify-center"
+              title="Er. Nitish (AI Mentor) - Click to chat"
+              aria-label="Chat with Er. Nitish"
+            >
+              {/* Subtle translucent animated ring */}
+              <span className="absolute -inset-1 rounded-full bg-blue-400/20 blur-xs animate-pulse -z-10" />
+
+              {/* Inner avatar circular wrapper with subtle transparency */}
+              <div className="w-full h-full rounded-full overflow-hidden bg-white/60 backdrop-blur-[2px] p-0.5 shadow-inner">
+                {renderAvatar('w-full h-full')}
+              </div>
+
+              {/* Online Green Pulse Indicator */}
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white/90 shadow-xs flex items-center justify-center">
+                <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. MINIMIZED STATE: COMPACT ROUND CIRCLE WITH RESUME & QUICK ACTIONS */}
       {isOpen && isMinimized && (
         <div
           id="er-nitish-ai-chat-minimized"
-          className="fixed left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1.5 animate-scaleUp"
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1.5 animate-scaleUp select-none pointer-events-auto"
         >
+          {/* Left Arrow Button: to tuck into wall even from minimized state */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              setIsMinimized(false);
+              setIsTucked(true);
+            }}
+            className="w-4.5 sm:w-5 h-7 sm:h-7.5 rounded-r-md bg-slate-900/30 hover:bg-slate-900/60 backdrop-blur-[2px] text-amber-300 border-y border-r border-white/25 shadow-2xs flex items-center justify-center cursor-pointer"
+            title="Minimise to left wall"
+            aria-label="Minimise to wall"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
           {/* Circular resume button */}
           <button
             type="button"
             onClick={() => setIsMinimized(false)}
-            className="relative w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-slate-900 via-blue-900 to-indigo-900 shadow-xl border-2 border-white/90 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
+            className="relative w-11 h-11 rounded-full p-0.5 bg-gradient-to-tr from-slate-900/80 via-blue-900/80 to-indigo-900/80 backdrop-blur-[2px] shadow-xl border-2 border-white/80 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
             title="Resume chat with Er. Nitish"
             aria-label="Resume chat"
           >
-            <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5">
+            <div className="w-full h-full rounded-full overflow-hidden bg-white/60 p-0.5">
               {renderAvatar('w-full h-full')}
             </div>
-            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" />
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900" />
             {/* Restore icon overlay on hover */}
             <div className="absolute inset-0 rounded-full bg-blue-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-              <Maximize2 className="w-4 h-4" />
+              <Maximize2 className="w-3.5 h-3.5" />
             </div>
           </button>
 
@@ -231,19 +325,20 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
               setIsOpen(false);
               setIsMinimized(false);
             }}
-            className="w-7 h-7 rounded-full bg-white/90 text-slate-500 hover:text-red-500 hover:bg-white shadow-md border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-6 h-6 rounded-full bg-white/80 hover:bg-white text-slate-500 hover:text-red-500 shadow-md border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
             title="Close chat completely"
             aria-label="Close chat"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-3 h-3" />
           </button>
         </div>
       )}
 
-      {/* 3. REDUCED & VIEWPORT-SAFE CHAT WINDOW (FIT SAFELY ON ALL MOBILE & DESKTOP SCREENS) */}
+      {/* 4. CHAT WINDOW (COMPACT, VIEWPORT-SAFE & OUT OF THE WAY) */}
       {isOpen && !isMinimized && (
         <div
           id="er-nitish-ai-chat-window"
+          data-nitish-chat="true"
           className="fixed left-2 sm:left-4 top-1/2 -translate-y-1/2 z-50 w-[calc(100vw-1rem)] max-w-[325px] sm:w-[335px] h-[450px] max-h-[72vh] sm:max-h-[490px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-scaleUp transition-all"
         >
           {/* Header (Compact, always inside viewport) */}
@@ -371,19 +466,24 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
                         {msg.text.includes('WhatsApp support') && (
                           <div className="pt-1.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
                             <a
-                              href="https://wa.me/919753000000?text=Hi%20Er.%20Nitish,%20I%20need%20help%20with%20NTechBay%20Library"
+                              href="https://wa.me/918982324497?text=Hi%20Er.%20Nitish,%20I%20need%20help%20with%20NTechBay%20Library"
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors shadow-2xs"
                             >
                               <MessageCircle className="w-3 h-3" />
-                              <span>WhatsApp</span>
+                              <span>WhatsApp (+91 89823 24497)</span>
                             </a>
                             {onOpenContact && (
                               <button
                                 type="button"
-                                onClick={onOpenContact}
-                                className="text-[11px] text-blue-600 font-semibold underline cursor-pointer p-0.5"
+                                onClick={() => {
+                                  setIsOpen(false);
+                                  setIsTucked(true);
+                                  onOpenContact();
+                                }}
+                                className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold underline cursor-pointer p-0.5"
+                                title="Open Contact Form"
                               >
                                 Contact Form
                               </button>

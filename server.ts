@@ -37,7 +37,7 @@ Domain Knowledge & Portal Navigation:
   - Click on any category card (e.g., "Syllabus", "Previous Year Papers", "Notes") to view drive links and download.
   - Use the "Quick Drive" button in the navigation bar to directly browse organized cloud folders.
 - Contact & Official Support:
-  - If a student asks for notes that aren't listed, or has website issues, or wants to connect with you directly: Politely guide them to WhatsApp support (+91 97530 00000) or the Contact Us form on the portal.
+  - If a student asks for notes that aren't listed, or has website issues, or wants to connect with you directly: Politely guide them to WhatsApp support (+91 89823 24497) or the Contact Us form on the portal.
 
 Guidelines:
 - Keep responses concise, practical, motivating, and cheerful.
@@ -57,7 +57,7 @@ function getSmartContextualFallback(query: string): string {
 3. Neeche diye gaye **"Syllabus"** card par click karein.
 4. Drive PDF view ya download karne ka direct option mil jayega!
 
-Agar kisi specific subject ka syllabus nahi mil raha, toh aap WhatsApp support par message bhej sakte hain.`;
+Agar kisi specific subject ka syllabus nahi mil raha, toh aap WhatsApp support (+91 89823 24497) par message bhej sakte hain.`;
   }
 
   if (q.includes('pyq') || q.includes('paper') || q.includes('previous') || q.includes('old')) {
@@ -86,14 +86,14 @@ Header me diye dropdown se apna course select karein aur resources access karein
   if (q.includes('contact') || q.includes('admin') || q.includes('help') || q.includes('whatsapp')) {
     return `Aap mujhse ya NTechBay team se direct connect kar sakte hain:
 
-- **WhatsApp Support:** [+91 97530 00000](https://wa.me/919753000000)
+- **WhatsApp Support:** [+91 89823 24497](https://wa.me/918982324497)
 - **Contact Page:** Website header me diye "Contact" button par click karein.
 - **Admin Portal:** Admin privileges ke liye secure login option menu me uplabdh hai.`;
   }
 
   return `Abhi AI network par thoda temporary load hai, lekin main aapki madad ke liye tayyar hoon!
 
-Aap portal par **Course, Semester aur Branch** select karke **Notes, Syllabus, PYQs** aur **Books** aasaani se download kar sakte hain. Kisi bhi direct help ke liye aap WhatsApp support use kar sakte hain.`;
+Aap portal par **Course, Semester aur Branch** select karke **Notes, Syllabus, PYQs** aur **Books** aasaani se download kar sakte hain. Kisi bhi direct help ke liye aap WhatsApp support ([+91 89823 24497](https://wa.me/918982324497)) use kar sakte hain.`;
 }
 
 async function startServer() {

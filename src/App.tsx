@@ -654,8 +654,20 @@ function LibraryApp() {
         onClose={() => setIsContactOpen(false)}
       />
 
-      {/* Interactive AI Mentor Chatbot Widget */}
-      <NitishChatbot onOpenContact={() => setIsContactOpen(true)} />
+      {/* Interactive AI Mentor Chatbot Widget with Form/Modal auto-tuck */}
+      <NitishChatbot
+        onOpenContact={() => setIsContactOpen(true)}
+        isFormOrModalOpen={Boolean(
+          authView ||
+          isProfileOpen ||
+          isContactOpen ||
+          isQuickDriveOpen ||
+          isAdminPanelModalOpen ||
+          isPromotionNoticeOpen ||
+          activeCategory ||
+          inactivityNotice
+        )}
+      />
     </div>
   );
 }
