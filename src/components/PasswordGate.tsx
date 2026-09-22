@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   HelpCircle,
   Cpu,
-  GraduationCap,
   ShieldCheck,
   LogIn,
   UserPlus,
@@ -236,14 +235,6 @@ export const PasswordGate: React.FC<PasswordGateProps> = ({
           transition: 'transform 0.15s ease-out',
         }}
       >
-        {/* University Pill Badge */}
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/15 backdrop-blur-md rounded-full border border-white/25 shadow-2xs">
-          <GraduationCap className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-          <span className="text-[11px] sm:text-xs font-bold text-white tracking-wide">
-            🏛️ RGPV University Bhopal (राजीव गांधी प्रौद्योगिकी विश्वविद्यालय)
-          </span>
-        </div>
-
         {/* Main Bilingual Headings */}
         <div className="space-y-0.5 max-w-3xl">
           <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-black text-white tracking-tight leading-tight drop-shadow-md">

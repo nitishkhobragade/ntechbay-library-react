@@ -1,17 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  MessageSquare,
   X,
   Send,
   Loader2,
   Sparkles,
   RotateCcw,
-  Bot,
-  User,
+  Minus,
+  Maximize2,
   ExternalLink,
-  HelpCircle,
-  BookOpen,
-  GraduationCap,
   MessageCircle,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -39,19 +35,17 @@ interface NitishChatbotProps {
 
 export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [hasUnreadNotice, setHasUnreadNotice] = useState<boolean>(true);
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [avatarLoadError, setAvatarLoadError] = useState<boolean>(false);
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    return [
-      {
-        id: 'msg-init',
-        role: 'model',
-        text: INITIAL_GREETING,
-        timestamp: new Date(),
-      },
-    ];
-  });
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    {
+      id: 'msg-init',
+      role: 'model',
+      text: INITIAL_GREETING,
+      timestamp: new Date(),
+    },
+  ]);
 
   const [inputValue, setInputValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -65,13 +59,11 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isMinimized) {
       scrollToBottom();
-      setHasUnreadNotice(false);
-      // Autofocus input
       setTimeout(() => inputRef.current?.focus(), 150);
     }
-  }, [isOpen, messages]);
+  }, [isOpen, isMinimized, messages]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend ?? inputValue).trim();
@@ -133,7 +125,7 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
     }
   };
 
-  // Avatar element renderer with graceful inline SVG fallback
+  // Avatar element renderer with graceful inline fallback
   const renderAvatar = (sizeClass: string = 'w-9 h-9') => {
     if (avatarLoadError) {
       return (
@@ -157,138 +149,201 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
   };
 
   return (
-    <aside aria-label="Er. Nitish AI Mentor Assistant" className="fixed bottom-6 right-6 z-50 select-none">
-      {/* Floating Toggle Button & Animated Say Hi Badge */}
+    <aside
+      aria-label="Er. Nitish AI Mentor Assistant"
+      className="select-none pointer-events-auto"
+    >
+      {/* 1. FLOATING TRIGGER: ONLY ROUND CIRCLE + 'SAY HI!' BADGE IN HIGHLIGHT COLORS */}
       {!isOpen && (
-        <div className="relative flex flex-col items-end group">
-          {/* Animated Callout Badge */}
-          {hasUnreadNotice && (
-            <div
-              onClick={() => setIsOpen(true)}
-              className="mb-2 cursor-pointer animate-bounce flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-slate-800 text-xs font-bold shadow-lg border border-blue-200/80 hover:bg-blue-50 transition-all"
-            >
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span>Say Hi! 👋</span>
-              <span className="text-blue-600 font-semibold">Ask Er. Nitish</span>
-            </div>
-          )}
+        <div
+          id="er-nitish-ai-trigger-container"
+          className="fixed left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center group cursor-pointer"
+        >
+          {/* Highlight Badge on Top: 'Say Hi! 👋' with radiant gradient & bounce */}
+          <div
+            onClick={() => {
+              setIsOpen(true);
+              setIsMinimized(false);
+            }}
+            className="mb-1.5 animate-bounce flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-white text-[11px] sm:text-xs font-black shadow-lg shadow-orange-500/30 border border-white/80 transition-transform active:scale-95 select-none"
+            title="Click to Say Hi to Er. Nitish!"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping shrink-0" />
+            <span className="tracking-wide drop-shadow-xs">Say Hi! 👋</span>
+          </div>
 
-          {/* Main Round Avatar Trigger Button */}
+          {/* Pure Round Circle Avatar Button */}
           <button
             type="button"
             id="er-nitish-ai-chat-trigger"
-            onClick={() => setIsOpen(true)}
-            className="relative w-15 h-15 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-600 p-1 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer group"
-            title="Chat with Er. Nitish (AI Mentor)"
-            aria-label="Open AI Mentor Chatbot"
+            onClick={() => {
+              setIsOpen(true);
+              setIsMinimized(false);
+            }}
+            className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full p-0.5 bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 shadow-xl shadow-blue-600/30 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-white cursor-pointer flex items-center justify-center"
+            title="Er. Nitish (AI Mentor) - Click to chat"
+            aria-label="Chat with Er. Nitish"
           >
-            {/* Pulsing ring */}
-            <span className="absolute -inset-1 rounded-full bg-blue-500/20 blur-xs animate-pulse -z-10" />
+            {/* Subtle glowing animated ring */}
+            <span className="absolute -inset-1 rounded-full bg-blue-400/30 blur-xs animate-pulse -z-10" />
 
-            {/* Avatar inside circle */}
-            <div className="w-full h-full rounded-full overflow-hidden bg-white border-2 border-white flex items-center justify-center">
+            {/* Inner avatar circular wrapper */}
+            <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5 shadow-inner">
               {renderAvatar('w-full h-full')}
             </div>
 
-            {/* Online indicator badge */}
-            <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-xs">
+            {/* Online Green Pulse Indicator */}
+            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-xs flex items-center justify-center">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            </span>
-
-            {/* Small icon bubble indicator */}
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-700 text-white text-[10px] flex items-center justify-center border-2 border-white shadow-2xs">
-              <Sparkles className="w-2.5 h-2.5" />
             </span>
           </button>
         </div>
       )}
 
-      {/* Expanded Chat Window Card */}
-      {isOpen && (
+      {/* 2. MINIMIZED STATE: COMPACT ROUND CIRCLE WITH EXPAND & CLOSE BADGE */}
+      {isOpen && isMinimized && (
+        <div
+          id="er-nitish-ai-chat-minimized"
+          className="fixed left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1.5 animate-scaleUp"
+        >
+          {/* Circular resume button */}
+          <button
+            type="button"
+            onClick={() => setIsMinimized(false)}
+            className="relative w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-slate-900 via-blue-900 to-indigo-900 shadow-xl border-2 border-white/90 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
+            title="Resume chat with Er. Nitish"
+            aria-label="Resume chat"
+          >
+            <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5">
+              {renderAvatar('w-full h-full')}
+            </div>
+            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" />
+            {/* Restore icon overlay on hover */}
+            <div className="absolute inset-0 rounded-full bg-blue-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+              <Maximize2 className="w-4 h-4" />
+            </div>
+          </button>
+
+          {/* Quick close button for minimized mode */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              setIsMinimized(false);
+            }}
+            className="w-7 h-7 rounded-full bg-white/90 text-slate-500 hover:text-red-500 hover:bg-white shadow-md border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+            title="Close chat completely"
+            aria-label="Close chat"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* 3. REDUCED & VIEWPORT-SAFE CHAT WINDOW (FIT SAFELY ON ALL MOBILE & DESKTOP SCREENS) */}
+      {isOpen && !isMinimized && (
         <div
           id="er-nitish-ai-chat-window"
-          className="w-[calc(100vw-2rem)] sm:w-[380px] h-[520px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-scaleUp transition-all"
+          className="fixed left-2 sm:left-4 top-1/2 -translate-y-1/2 z-50 w-[calc(100vw-1rem)] max-w-[325px] sm:w-[335px] h-[450px] max-h-[72vh] sm:max-h-[490px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-scaleUp transition-all"
         >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 px-4 py-3.5 text-white flex items-center justify-between shadow-xs shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-white/10 p-0.5 border border-white/20 overflow-hidden">
+          {/* Header (Compact, always inside viewport) */}
+          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 px-3 py-2 text-white flex items-center justify-between shadow-xs shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-8 h-8 rounded-full bg-white/10 p-0.5 border border-white/20 overflow-hidden">
                   {renderAvatar('w-full h-full')}
                 </div>
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs sm:text-sm font-bold text-white truncate">
-                    Er. Nitish (Founder & AI Mentor)
-                  </h3>
-                </div>
-                <p className="text-[11px] text-blue-200/80 truncate flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  NTechBay Library Assistant
+                <h3 className="text-xs font-bold text-white truncate flex items-center gap-1">
+                  <span>Er. Nitish</span>
+                  <Sparkles className="w-3 h-3 text-amber-300 fill-amber-300 shrink-0" />
+                </h3>
+                <p className="text-[10px] text-blue-200/80 truncate flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  AI Academic Mentor
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            {/* Header Actions: Reset, Minimise, Close */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              {/* Restart conversation */}
               <button
                 type="button"
                 onClick={handleResetChat}
-                className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
                 title="Restart conversation"
+                aria-label="Restart chat"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
 
+              {/* Minimise Option Button */}
+              <button
+                type="button"
+                id="er-nitish-ai-chat-minimize"
+                onClick={() => setIsMinimized(true)}
+                className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                title="Minimize chat"
+                aria-label="Minimize chat"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Close Button */}
               <button
                 type="button"
                 id="er-nitish-ai-chat-close"
-                onClick={() => setIsOpen(false)}
-                className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                title="Close chat window"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsMinimized(false);
+                }}
+                className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-400 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                title="Close chat"
                 aria-label="Close chat"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Chat Messages Body */}
-          <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 bg-slate-50/70">
+          {/* Chat Messages Body (Compact, clean readability) */}
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-slate-50/70 overscroll-contain">
             {messages.map((msg) => {
               const isBot = msg.role === 'model';
               return (
                 <div
                   key={msg.id}
-                  className={`flex items-start gap-2 ${isBot ? 'justify-start' : 'justify-end'}`}
+                  className={`flex items-start gap-1.5 ${isBot ? 'justify-start' : 'justify-end'}`}
                 >
                   {isBot && (
-                    <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 mt-0.5 border border-slate-200">
+                    <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 mt-0.5 border border-slate-200">
                       {renderAvatar('w-full h-full')}
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs shadow-2xs leading-relaxed ${
+                    className={`max-w-[88%] rounded-xl px-2.5 py-1.5 text-[11.5px] shadow-2xs leading-relaxed break-words ${
                       isBot
                         ? 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs'
                         : 'bg-blue-600 text-white rounded-tr-xs font-medium'
                     }`}
                   >
                     {isBot ? (
-                      <div className="prose prose-xs max-w-none text-slate-800 space-y-1.5">
+                      <div className="prose prose-xs max-w-none text-slate-800 space-y-1">
                         <Markdown
                           components={{
-                            p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                            p: ({ children }) => <p className="mb-1 last:mb-0 leading-relaxed">{children}</p>,
                             strong: ({ children }) => (
                               <strong className="font-semibold text-slate-900">{children}</strong>
                             ),
                             ul: ({ children }) => (
-                              <ul className="list-disc pl-4 space-y-0.5 my-1 text-slate-700">{children}</ul>
+                              <ul className="list-disc pl-3.5 space-y-0.5 my-0.5 text-slate-700">{children}</ul>
                             ),
                             ol: ({ children }) => (
-                              <ol className="list-decimal pl-4 space-y-0.5 my-1 text-slate-700">{children}</ol>
+                              <ol className="list-decimal pl-3.5 space-y-0.5 my-0.5 text-slate-700">{children}</ol>
                             ),
                             li: ({ children }) => <li className="leading-tight">{children}</li>,
                             a: ({ href, children }) => (
@@ -303,7 +358,7 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
                               </a>
                             ),
                             code: ({ children }) => (
-                              <code className="bg-slate-100 text-blue-700 px-1 py-0.5 rounded font-mono text-[11px]">
+                              <code className="bg-slate-100 text-blue-700 px-1 py-0.2 rounded font-mono text-[10px]">
                                 {children}
                               </code>
                             ),
@@ -314,21 +369,21 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
 
                         {/* WhatsApp support shortcut if fallback message is shown */}
                         {msg.text.includes('WhatsApp support') && (
-                          <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                          <div className="pt-1.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
                             <a
                               href="https://wa.me/919753000000?text=Hi%20Er.%20Nitish,%20I%20need%20help%20with%20NTechBay%20Library"
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors"
                             >
                               <MessageCircle className="w-3 h-3" />
-                              <span>Open WhatsApp Support</span>
+                              <span>WhatsApp</span>
                             </a>
                             {onOpenContact && (
                               <button
                                 type="button"
                                 onClick={onOpenContact}
-                                className="text-[11px] text-blue-600 font-semibold underline cursor-pointer"
+                                className="text-[11px] text-blue-600 font-semibold underline cursor-pointer p-0.5"
                               >
                                 Contact Form
                               </button>
@@ -341,7 +396,7 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
                     )}
 
                     <span
-                      className={`block text-[9px] mt-1 text-right ${
+                      className={`block text-[8.5px] mt-0.5 text-right ${
                         isBot ? 'text-slate-400' : 'text-blue-200'
                       }`}
                     >
@@ -355,17 +410,17 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
               );
             })}
 
-            {/* Typing Indicator while waiting for AI response */}
+            {/* Typing Indicator */}
             {isLoading && (
-              <div className="flex items-start gap-2">
-                <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 mt-0.5 border border-slate-200">
+              <div className="flex items-start gap-1.5">
+                <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 mt-0.5 border border-slate-200">
                   {renderAvatar('w-full h-full')}
                 </div>
-                <div className="bg-white border border-slate-200/80 rounded-2xl rounded-tl-xs px-3.5 py-2.5 shadow-2xs flex items-center gap-1.5 text-xs text-slate-500">
+                <div className="bg-white border border-slate-200/80 rounded-xl rounded-tl-xs px-2.5 py-1.5 shadow-2xs flex items-center gap-1 text-[11px] text-slate-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" />
-                  <span className="text-[11px] text-slate-400 ml-1">Er. Nitish typing...</span>
+                  <span className="text-[10px] text-slate-400 ml-1">Typing...</span>
                 </div>
               </div>
             )}
@@ -373,29 +428,32 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Action Suggestion Chips */}
-          <div className="px-3 pt-2 pb-1 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+          {/* Quick Action Suggestion Chips without any ugly browser scrollbar */}
+          <div
+            className="no-scrollbar px-2 pt-1.5 pb-1 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto touch-pan-x shrink-0"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             {SUGGESTION_CHIPS.map((chip, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSendMessage(chip)}
                 disabled={isLoading}
-                className="whitespace-nowrap text-[10px] font-medium px-2.5 py-1 rounded-full bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                className="whitespace-nowrap text-[10px] font-medium px-2.5 py-1 rounded-full bg-slate-100 hover:bg-blue-50 active:bg-blue-100 text-slate-700 hover:text-blue-700 border border-slate-200 transition-colors shrink-0 cursor-pointer disabled:opacity-50"
               >
                 {chip}
               </button>
             ))}
           </div>
 
-          {/* Input Area */}
-          <div className="p-3 bg-white border-t border-slate-100 shrink-0">
+          {/* Compact Input Area */}
+          <div className="p-2 bg-white border-t border-slate-100 shrink-0">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5"
             >
               <input
                 ref={inputRef}
@@ -403,28 +461,28 @@ export const NitishChatbot: React.FC<NitishChatbotProps> = ({ onOpenContact }) =
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Apna sawal yaha likhein / Ask anything..."
+                placeholder="Ask Er. Nitish..."
                 disabled={isLoading}
-                className="flex-1 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs text-slate-900 placeholder:text-slate-400 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                className="flex-1 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs text-slate-900 placeholder:text-slate-400 border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
               />
 
               <button
                 type="submit"
                 id="er-nitish-send-button"
                 disabled={!inputValue.trim() || isLoading}
-                className="w-9 h-9 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-xs transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-xs transition-colors cursor-pointer"
                 title="Send message"
               >
                 {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                 )}
               </button>
             </form>
 
-            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 px-1">
-              <span>Powered by Google Gemini</span>
+            <div className="mt-1 flex items-center justify-between text-[9px] text-slate-400 px-0.5">
+              <span>Powered by Gemini</span>
               <span>Er. Nitish Khobragade (NK)</span>
             </div>
           </div>
