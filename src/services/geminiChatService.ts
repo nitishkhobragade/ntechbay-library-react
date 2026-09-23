@@ -12,6 +12,7 @@ export interface SendMessagePayload {
   history: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }>;
 }
 
+// Candidate models in resilience order
 const CANDIDATE_MODELS = [
   'gemini-3.1-flash-lite',
   'gemini-flash-latest',
@@ -48,7 +49,54 @@ Guidelines:
 - If asking about external exam dates, advise checking rgpv.ac.in for the official timetable while offering study advice.`;
 
 function getSmartContextualFallback(query: string): string {
-  const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
+
+  // Greetings
+  if (
+    q === 'hi' ||
+    q === 'hello' ||
+    q === 'hey' ||
+    q.startsWith('hi ') ||
+    q.startsWith('hello ') ||
+    q.includes('kaise ho') ||
+    q.includes('namaste') ||
+    q.includes('kya hal')
+  ) {
+    return `**Namaste! Kaise hain aap?** 👋
+
+Main **Er. Nitish Khobragade (NK)**, Founder & Developer of NTechBay Library.
+
+Main yahan aapko aapke **B.Tech, Polytechnic, M.Tech aur MBA** studies me guide karne ke liye hoon. Aap mujhse:
+- 📚 **Syllabus & Schemes** download karne ka tarika
+- 📝 **Topper Handwritten Notes & Faculty Notes**
+- 📑 **Previous Year Papers (PYQs)**
+- 📖 **Standard Reference Textbooks**
+- 💡 **Exam Preparation Strategy & Scoring Tips**
+
+ke baare me kuch bhi pooch sakte hain. Boliye, aaj main aapki kya help karoon?`;
+  }
+
+  // Notes
+  if (q.includes('notes') || q.includes('study material') || q.includes('handwritten')) {
+    return `**Notes Access Karne Ka Tarika:** 📚
+
+1. Website ke top par apna **Course** (jaise B.Tech, Polytechnic) choose karein.
+2. Apna **Semester** aur **Branch** select karein.
+3. Ab **"Notes"** wale card par click karein.
+4. Wahan aapko unit-wise organized Google Drive PDFs mil jayengi jinhe aap read ya download kar sakte hain.
+
+Kisi specific subject ke notes chahiye toh mujhe subject code ya name batayein!`;
+  }
+
+  // Books
+  if (q.includes('book') || q.includes('textbook') || q.includes('author')) {
+    return `**Standard Reference Books:** 📖
+
+NTechBay par standard authors aur reference books PDF format me uplabdh hain:
+1. Apna **Course, Semester & Branch** select karein.
+2. **"Study Books"** card par click karein.
+3. Subject wise recommended reference books direct drive se access karein.`;
+  }
 
   if (q.includes('syllabus') || q.includes('download')) {
     return `**Syllabus download karne ka aasan tareeka:**
@@ -84,17 +132,17 @@ Hamare portal par 4 mukhya categories hain:
 Header me diye dropdown se apna course select karein aur resources access karein!`;
   }
 
-  if (q.includes('contact') || q.includes('admin') || q.includes('help') || q.includes('whatsapp')) {
-    return `Aap mujhse ya NTechBay team se direct connect kar sakte hain:
+  if (q.includes('contact') || q.includes('admin') || q.includes('help') || q.includes('whatsapp') || q.includes('number')) {
+    return `Aap mujhse direct connect kar sakte hain:
 
 - **WhatsApp Support:** [+91 89823 24497](https://wa.me/918982324497)
 - **Contact Page:** Website header me diye "Contact" button par click karein.
 - **Admin Portal:** Admin privileges ke liye secure login option menu me uplabdh hai.`;
   }
 
-  return `Abhi AI network par thoda temporary load hai, lekin main aapki madad ke liye yaha hoon!
+  return `Main **Er. Nitish Khobragade (NK)** aapki poori madad ke liye yahan hoon!
 
-Aap portal par **Course, Semester aur Branch** select karke **Notes, Syllabus, PYQs** aur **Books** aasaani se access kar sakte hain. Kisi bhi direct help ke liye aap WhatsApp support ([+91 89823 24497](https://wa.me/918982324497)) par connect karein.`;
+Aap portal par **Course, Semester aur Branch** select karke **Notes, Syllabus, PYQs** aur **Books** aasaani se access kar sakte hain. Kisi bhi direct help ya guidance ke liye aap WhatsApp support ([+91 89823 24497](https://wa.me/918982324497)) par connect karein.`;
 }
 
 /**
