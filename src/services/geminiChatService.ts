@@ -13,10 +13,9 @@ export interface SendMessagePayload {
 }
 
 const CANDIDATE_MODELS = [
-  'gemini-2.5-flash',
+  'gemini-3.1-flash-lite',
   'gemini-flash-latest',
   'gemini-3.8-flash',
-  'gemini-3.1-flash-lite',
 ];
 
 const NITISH_SYSTEM_INSTRUCTION = `You are Er. Nitish Khobragade (NK), the Founder, Developer, and Chief Academic Mentor of NTechBay Library (ntechbay.com).
@@ -111,7 +110,7 @@ export async function sendChatMessage(
     parts: [{ text: msg.text }],
   }));
 
-  // 1. Primary: Server-side route /api/chat
+  // 1. Primary: Try relative server-side route /api/chat
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
@@ -119,18 +118,50 @@ export async function sendChatMessage(
       body: JSON.stringify({ message, history: formattedHistory }),
     });
 
-    if (res.ok) {
+    const contentType = res.headers.get('content-type') || '';
+    // Guard against Firebase Hosting SPA fallback serving index.html (text/html) instead of API JSON
+    if (res.ok && contentType.includes('application/json')) {
       const data = await res.json();
-      if (data.reply) {
+      if (data?.reply) {
         return data.reply;
       }
     }
   } catch (err) {
-    console.warn('Server chat endpoint unreachable, trying client fallback if available...', err);
+    console.warn('Local /api/chat not available or not JSON, checking fallback options...', err);
   }
 
-  // 2. Client-side fallback if VITE_GEMINI_API_KEY is provided
-  const clientKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  // 2. Secondary: If on Firebase Hosting or external domain, try remote Cloud Run backend URL if configured
+  const remoteAppUrl = (import.meta as any).env?.VITE_APP_URL;
+  if (
+    remoteAppUrl &&
+    typeof window !== 'undefined' &&
+    !window.location.origin.includes('localhost') &&
+    !window.location.origin.includes('127.0.0.1')
+  ) {
+    try {
+      const remoteEndpoint = `${remoteAppUrl.replace(/\/$/, '')}/api/chat`;
+      const remoteRes = await fetch(remoteEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, history: formattedHistory }),
+      });
+      const remoteContentType = remoteRes.headers.get('content-type') || '';
+      if (remoteRes.ok && remoteContentType.includes('application/json')) {
+        const remoteData = await remoteRes.json();
+        if (remoteData?.reply) {
+          return remoteData.reply;
+        }
+      }
+    } catch {
+      // Continue to client GenAI fallback
+    }
+  }
+
+  // 3. Client-side fallback via @google/genai SDK (bundled via Vite or configured by user)
+  const clientKey =
+    (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('ntechbay_gemini_api_key') : null);
+
   if (clientKey) {
     try {
       const ai = new GoogleGenAI({ apiKey: clientKey });
@@ -158,7 +189,7 @@ export async function sendChatMessage(
           }
         } catch (mErr: any) {
           console.warn(`Client model ${modelName} unavailable, trying next...`, mErr);
-          await new Promise((r) => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, 250));
         }
       }
     } catch (clientErr) {
@@ -166,6 +197,6 @@ export async function sendChatMessage(
     }
   }
 
-  // 3. Smart contextual fallback if all external endpoints are temporarily congested
+  // 4. Smart contextual fallback if all external endpoints are temporarily congested
   return getSmartContextualFallback(message);
 }

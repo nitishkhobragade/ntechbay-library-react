@@ -9,10 +9,9 @@ const PORT = 3000;
 
 // High-availability candidate model pool to handle temporary 503 capacity spikes
 const CANDIDATE_MODELS = [
-  'gemini-2.5-flash',
+  'gemini-3.1-flash-lite',
   'gemini-flash-latest',
   'gemini-3.8-flash',
-  'gemini-3.1-flash-lite',
 ];
 
 const NITISH_SYSTEM_INSTRUCTION = `You are Er. Nitish Khobragade (NK), the Founder, Developer, and Chief Academic Mentor of NTechBay Library (ntechbay.com).
@@ -98,6 +97,17 @@ Aap portal par **Course, Semester aur Branch** select karke **Notes, Syllabus, P
 
 async function startServer() {
   const app = express();
+
+  // Enable CORS for all incoming requests (supports Firebase Hosting and external clients)
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
 
   app.use(express.json({ limit: '10mb' }));
 

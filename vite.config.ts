@@ -4,12 +4,19 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
+  const appUrl = process.env.APP_URL || '';
+
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
+    },
+    define: {
+      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(geminiApiKey),
+      'import.meta.env.VITE_APP_URL': JSON.stringify(appUrl),
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
